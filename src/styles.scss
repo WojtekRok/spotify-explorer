@@ -1,1 +1,53 @@
-/* You can add global styles to this file, and also import other style files */
+/* Custom Spotify Theme */
+$spotify-green: #1DB954;
+$spotify-black: #191414;
+
+body {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+/* Navbar styling */
+.navbar-brand {
+  font-weight: 700;
+  color: $spotify-green !important;
+}
+
+.nav-link.active {
+  color: $spotify-green !important;
+  font-weight: 600;
+}
+
+/* Jumbotron styling */
+.jumbotron {
+  background: linear-gradient(135deg, $spotify-black 0%, $spotify-green 100%);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  border: none;
+}
+
+/* Card styling */
+.card {
+  border: none;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+.card-title {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+/* Footer styling */
+.footer {
+  background-color: $spotify-black;
+  color: white;
+  padding: 20px 0;
+  margin-top: 3rem;
+}

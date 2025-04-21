@@ -1,0 +1,16 @@
+.jumbotron {
+    background: linear-gradient(to right, #191414, #1DB954);
+    border-radius: 10px;
+  }
+  
+  .card {
+    transition: transform 0.3s;
+  }
+  
+  .card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .card-title {
+    color: #1DB954;
+  }
