@@ -26,6 +26,8 @@
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
+              "src/favicon.ico",
+              "src/assets", 
               {
                 "glob": "**/*",
                 "input": "public"
@@ -70,6 +72,11 @@
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+          "buildTarget": "spotify-explorer:build:development",
+          "host": "127.0.0.1",
+          "port": 4200          
+        },
           "configurations": {
             "production": {
               "buildTarget": "spotify-explorer:build:production"
@@ -93,6 +100,8 @@
             "tsConfig": "tsconfig.spec.json",
             "inlineStyleLanguage": "scss",
             "assets": [
+              "src/favicon.ico",
+              "src/assets", 
               {
                 "glob": "**/*",
                 "input": "public"

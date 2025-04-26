@@ -1,53 +1,54 @@
-<div class="jumbotron bg-dark text-white p-5 rounded mb-5">
-    <h1 class="display-4">Welcome to Spotify Explorer</h1>
-    <p class="lead">Discover music, artists, and playlists using the Spotify API</p>
-    <hr class="my-4 bg-light opacity-25">
-    <p>Search for your favorite artists, albums, and tracks</p>
-    <a class="btn btn-success btn-lg mt-2" routerLink="/search">Start Exploring</a>
+<div class="container">
+  <div class="hero-section">
+    <h1>Welcome to Spotify Explorer</h1>
+    <p>Discover music, artists, and playlists using the Spotify API</p>
+    
+    <button *ngIf="!isLoggedIn" class="btn btn-success" (click)="login()">
+      Connect with Spotify
+    </button>
   </div>
-  
-  <div class="row mt-5">
-    <div class="col-md-4 mb-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#1DB954" class="bi bi-search me-2" viewBox="0 0 16 16">
-              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
-            </svg>
-            Search
-          </h5>
-          <p class="card-text">Find your favorite music by searching for artists, albums, or tracks.</p>
-        </div>
-      </div>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="icon">🔍</div>
+      <h3>Search</h3>
+      <p>Find your favorite music by searching for artists, albums, or tracks.</p>
+      <button class="btn btn-outline-success" routerLink="/search">Search Music</button>
     </div>
-    <div class="col-md-4 mb-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#1DB954" class="bi bi-music-note-list me-2" viewBox="0 0 16 16">
-              <path d="M12 13c0 1.105-1.12 2-2.5 2S7 14.105 7 13s1.12-2 2.5-2 2.5.895 2.5 2z"/>
-              <path fill-rule="evenodd" d="M12 3v10h-1V3h1z"/>
-              <path d="M11 2.82a1 1 0 0 1 .804-.98l3-.6A1 1 0 0 1 16 2.22V4l-5 1V2.82z"/>
-              <path fill-rule="evenodd" d="M0 11.5a.5.5 0 0 1 .5-.5H4a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5zm0-4A.5.5 0 0 1 .5 7H8a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5zm0-4A.5.5 0 0 1 .5 3H8a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5z"/>
-            </svg>
-            Discover
-          </h5>
-          <p class="card-text">Explore new releases, featured playlists, and personalized recommendations.</p>
-        </div>
-      </div>
+    
+    <div class="feature-card">
+      <div class="icon">🏆</div>
+      <h3>Top Charts</h3>
+      <p>Explore global and country-specific charts with the latest hits.</p>
+      <button class="btn btn-outline-success" routerLink="/charts">View Charts</button>
     </div>
-    <div class="col-md-4 mb-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#1DB954" class="bi bi-play-circle me-2" viewBox="0 0 16 16">
-              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-              <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/>
-            </svg>
-            Play
-          </h5>
-          <p class="card-text">Listen to previews and connect with your Spotify account for full playback.</p>
-        </div>
-      </div>
+    
+    <div class="feature-card">
+      <div class="icon">🆕</div>
+      <h3>New Releases</h3>
+      <p>Discover the latest albums and singles across all genres.</p>
+      <button class="btn btn-outline-success" routerLink="/new-releases">Browse New Music</button>
+    </div>
+    
+    <div class="feature-card">
+      <div class="icon">📊</div>
+      <h3>User Stats</h3>
+      <p>See your listening statistics for weekly, monthly, and yearly periods.</p>
+      <button class="btn btn-outline-success" routerLink="/stats">View My Stats</button>
+    </div>
+    
+    <div class="feature-card">
+      <div class="icon">🎲</div>
+      <h3>Mix Generator</h3>
+      <p>Create custom playlists based on genres, decades, and more.</p>
+      <button class="btn btn-outline-success" (click)="openMixGenerator()">Create Mix</button>
+    </div>
+    
+    <div class="feature-card">
+      <div class="icon">🎤</div>
+      <h3>Artist Spotlight</h3>
+      <p>Explore featured artists and get personalized recommendations.</p>
+      <button class="btn btn-outline-success" routerLink="/artists">Discover Artists</button>
     </div>
   </div>
+</div>

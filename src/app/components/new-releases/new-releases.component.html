@@ -1,0 +1,79 @@
+<!-- new-releases.component.html (Adapted for Spotify + Type Filtering) -->
+<div class="container my-4">
+    <h1 class="mb-4">New Releases</h1>
+  
+    <div *ngIf="!isLoggedIn" class="alert alert-warning">
+      You need to <a (click)="login()" href="javascript:void(0)">login with Spotify</a> to view new releases.
+    </div>
+  
+    <div *ngIf="isLoggedIn">
+      <!-- Filter Controls -->
+      <div class="mb-4">
+        <div class="btn-group" role="group" aria-label="Filter by type">
+          <button type="button" class="btn" 
+                  [ngClass]="selectedAlbumType === 'all' ? 'btn-success' : 'btn-outline-success'" 
+                  (click)="setFilter('all')">All</button>
+          <button type="button" class="btn" 
+                  [ngClass]="selectedAlbumType === 'album' ? 'btn-success' : 'btn-outline-success'" 
+                  (click)="setFilter('album')">Albums</button>
+          <button type="button" class="btn" 
+                  [ngClass]="selectedAlbumType === 'single' ? 'btn-success' : 'btn-outline-success'" 
+                  (click)="setFilter('single')">Singles & EPs</button>
+          <button type="button" class="btn" 
+                  [ngClass]="selectedAlbumType === 'compilation' ? 'btn-success' : 'btn-outline-success'" 
+                  (click)="setFilter('compilation')">Compilations</button> 
+        </div>
+      </div>
+  
+      <!-- Loading state -->
+      <div *ngIf="loading" class="text-center my-5">
+        <div class="spinner-border text-success" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+  
+      <!-- Error state -->
+      <div *ngIf="!loading && error" class="alert alert-warning">
+        {{ error }}
+      </div>
+  
+      <!-- Results grid -->
+      <!-- Iterate over filteredNewReleases -->
+      <div *ngIf="!loading && !error && filteredNewReleases.length > 0" class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-4">
+        <!-- Use 'album' as the iteration variable for Spotify data -->
+        <div class="col" *ngFor="let album of filteredNewReleases"> 
+          <div class="card h-100 shadow-sm">
+            <!-- Access Spotify image structure -->
+            <img [src]="album.images[0]?.url || 'assets/no-image.jpg'" 
+                 class="card-img-top" 
+                 alt="{{ album.name }}"
+                 (error)="handleImageError($event)">
+            <div class="card-body">
+               <!-- Access Spotify data fields -->
+              <h5 class="card-title text-truncate" title="{{ album.name }}">{{ album.name }}</h5>
+              <!-- Spotify artist structure -->
+              <p class="card-text text-truncate" title="{{ album.artists[0]?.name || 'Unknown Artist' }}"> 
+                {{ album.artists[0]?.name || 'Unknown Artist' }}
+              </p>
+              <p class="card-text"><small class="text-muted">Released: {{ album.release_date | date }}</small></p>
+              <!-- Optionally show type: <p class="card-text"><small>Type: {{album.album_type}}</small></p> -->
+            </div>
+            <div class="card-footer bg-transparent border-top-0">
+              <!-- Spotify external URL -->
+              <a [href]="album.external_urls?.spotify" target="_blank" class="btn btn-sm btn-outline-success w-100">
+                Open in Spotify
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+  
+      <!-- No results state (check filtered list) -->
+      <div *ngIf="!loading && !error && filteredNewReleases.length === 0 && allNewReleases.length > 0" class="alert alert-info">
+        No new releases match the selected filter ({{ selectedAlbumType }}).
+      </div>
+       <div *ngIf="!loading && !error && filteredNewReleases.length === 0 && allNewReleases.length === 0" class="alert alert-info">
+        No new releases found.
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,101 @@
+<div class="container my-4" *ngIf="!loading; else spinner">
+
+  <div class="row g-3 mb-4">
+    <!-- Region -->
+    <div class="col-md-3">
+      <label class="form-label">Region</label>
+      <select class="form-select" [(ngModel)]="region"
+              (change)="onRegionChange()">
+        <!-- Use updated regions list -->
+        <option *ngFor="let r of regions" [value]="r.code">{{ r.name| titlecase }}</option>
+      </select>
+    </div> 
+  </div>
+
+   <!-- Add source information row -->
+   <div class="row mb-3">
+    <div class="col">
+      <small class="text-muted">
+        Chart data sourced from Apple Music RSS feeds (most played). Displaying top 50.
+      </small>
+    </div>
+  </div>
+
+  <div class="row row-cols-1 row-cols-lg-2 g-4">
+
+    <!-- Singles panel -->
+    <div class="col">
+      <div class="card h-100 shadow-sm rounded-3">
+        <div class="card-body">
+          <h5 class="card-title">{{ selectedRegionName }} Singles</h5>
+          <!-- Check if singles array has items -->
+          <ng-container *ngIf="singles.length > 0; else noSingles">
+            <table class="table table-sm align-middle mb-0">
+              <tbody>
+                <tr *ngFor="let t of singles">
+                  <td width="1">{{ t.position }}</td>
+                  <td width="1">
+                    <img [src]="t.thumbnail"
+                         (error)="handleImgErr($event)"
+                         width="40" height="40" class="rounded">
+                  </td>
+                  <td>
+                    <div class="fw-semibold">{{ t.title }}</div>
+                    <small class="text-body-secondary">{{ t.artist }}</small>
+                  </td>
+                  <td width="1">
+                    <a class="btn btn-sm btn-outline-success"
+                       [href]="getSpotifySearchUrl(t)" target="_blank">↗︎</a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-container>
+          <ng-template #noSingles>
+             <p class="text-muted">No singles data available for this region.</p>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Albums panel -->
+    <div class="col">
+      <div class="card h-100 shadow-sm rounded-3">
+        <div class="card-body">
+          <h5 class="card-title">{{ selectedRegionName }} Albums</h5>
+           <!-- Check if albums array has items -->
+           <ng-container *ngIf="albums.length > 0; else noAlbums">
+             <table class="table table-sm align-middle mb-0">
+               <tbody>
+                 <tr *ngFor="let t of albums">
+                   <td width="1">{{ t.position }}</td>
+                   <td width="1">
+                     <img [src]="t.thumbnail"
+                          (error)="handleImgErr($event)"
+                          width="40" height="40" class="rounded">
+                   </td>
+                   <td>
+                     <div class="fw-semibold">{{ t.title }}</div>
+                     <small class="text-body-secondary">{{ t.artist }}</small>
+                   </td>
+                   <td width="1">
+                     <a class="btn btn-sm btn-outline-success"
+                        [href]="getSpotifySearchUrl(t)" target="_blank">↗︎</a>
+                   </td>
+                 </tr>
+               </tbody>
+             </table>
+           </ng-container>
+           <ng-template #noAlbums>
+              <p class="text-muted">No albums data available for this region.</p>
+           </ng-template>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<ng-template #spinner>
+  <div class="text-center my-5"><div class="spinner-border text-success"></div></div>
+</ng-template>

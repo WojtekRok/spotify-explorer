@@ -1,1 +1,80 @@
-<p>search works!</p>
+<div class="container">
+    <h1 class="mb-4">Search Spotify</h1>
+    
+    <div *ngIf="!spotifyService.isLoggedIn()" class="alert alert-warning">
+      You need to <a (click)="login()" href="javascript:void(0)">login with Spotify</a> to use the search feature.
+    </div>
+  
+    <div *ngIf="spotifyService.isLoggedIn()">
+      <div class="mb-4">
+        <div class="input-group">
+          <input 
+            type="text" 
+            class="form-control" 
+            placeholder="Search for artists, albums, or tracks..." 
+            [(ngModel)]="searchQuery" 
+            (keyup.enter)="search()"
+          >
+          <button class="btn btn-success" type="button" (click)="search()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+            </svg>
+            Search
+          </button>
+        </div>
+        
+        <div class="mt-2">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="searchType" id="typeArtist" value="artist" [(ngModel)]="searchType" checked>
+            <label class="form-check-label" for="typeArtist">Artists</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="searchType" id="typeAlbum" value="album" [(ngModel)]="searchType">
+            <label class="form-check-label" for="typeAlbum">Albums</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="searchType" id="typeTrack" value="track" [(ngModel)]="searchType">
+            <label class="form-check-label" for="typeTrack">Tracks</label>
+          </div>
+        </div>
+      </div>
+  
+      <div *ngIf="loading" class="text-center my-5">
+        <div class="spinner-border text-success" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+  
+      <div *ngIf="!loading && searchResults.length > 0" class="row">
+        <div *ngFor="let item of searchResults" class="col-five mb-4">
+          <div class="card h-100">
+            <img [src]="item.images && item.images[0]?.url || 'assets/no-image.jpg'" 
+              class="card-img-top" 
+              alt="{{ item.name }}"
+              (error)="handleImageError($event)">
+              <div class="card-body">
+              <h5 class="card-title">{{ item.name }}</h5>
+              <p *ngIf="searchType === 'artist'" class="card-text">
+                <span class="badge bg-secondary me-1" *ngFor="let genre of item.genres.slice(0, 3)">{{ genre }}</span>
+              </p>
+              <p *ngIf="searchType === 'album'" class="card-text">
+                {{ item.artists[0].name }}
+              </p>
+              <p *ngIf="searchType === 'track'" class="card-text">
+                {{ item.artists[0].name }} - {{ item.album.name }}
+              </p>
+            </div>
+            <div class="card-footer">
+              <a [href]="item.external_urls.spotify" target="_blank" class="btn btn-sm btn-outline-success">
+                Open in Spotify
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+  
+      <div *ngIf="!loading && searchResults.length === 0 && searched" class="alert alert-info">
+        No results found for "{{ searchQuery }}". Try another search term.
+      </div>
+    </div>
+  </div>

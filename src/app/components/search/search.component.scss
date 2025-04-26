@@ -1,0 +1,61 @@
+// Custom class for 5 columns per row
+.col-five {
+    flex: 0 0 20%;
+    max-width: 20%;
+    padding-right: 12px;
+    padding-left: 12px;
+    position: relative;
+    width: 100%;
+  }
+  
+  // Responsive adjustments
+  @media (max-width: 1199.98px) {
+    .col-five {
+      flex: 0 0 25%;
+      max-width: 25%;
+    }
+  }
+  
+  @media (max-width: 991.98px) {
+    .col-five {
+      flex: 0 0 33.333333%;
+      max-width: 33.333333%;
+    }
+  }
+  
+  @media (max-width: 767.98px) {
+    .col-five {
+      flex: 0 0 50%;
+      max-width: 50%;
+    }
+  }
+  
+  @media (max-width: 575.98px) {
+    .col-five {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+  }
+  
+  // Make sure the card images maintain a square aspect ratio
+  .card-img-top {
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+  }
+  
+  // Ensure the card title doesn't break layout
+  .card-title {
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  // Make the cards slightly smaller
+  .card {
+    transition: transform 0.2s;
+    
+    &:hover {
+      transform: scale(1.03);
+    }
+  }
