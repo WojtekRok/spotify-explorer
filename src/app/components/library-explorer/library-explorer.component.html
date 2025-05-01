@@ -1,0 +1,295 @@
+<div class="container my-4">
+    <h1 class="mb-4">Library Explorer</h1>
+  
+    <!-- Login Prompt -->
+    <div *ngIf="!isLoggedIn" class="alert alert-warning">
+      Please <a (click)="login()" href="javascript:void(0)">connect with Spotify</a> to explore your library.
+    </div>
+  
+    <!-- Library View -->
+    <div *ngIf="isLoggedIn">
+
+    <!-- == Search Spotify Section == -->
+    <div class="search-spotify mb-4 p-3 border rounded bg-light">
+        <h4 class="mb-3">Add to Library</h4>
+        <div class="input-group mb-2">
+            <input type="text" class="form-control" [placeholder]="getSearchPlaceholder()"
+                   [(ngModel)]="searchQuery" (keyup.enter)="performSearch()">
+            <button class="btn btn-outline-secondary" type="button" (click)="performSearch()" [disabled]="isSearching || !searchQuery.trim()">
+                 <span *ngIf="isSearching" class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                 {{ isSearching ? 'Searching...' : 'Search' }}
+            </button>
+        </div>
+
+    <!-- Search Results -->
+    <div *ngIf="showSearchResults">
+        <div *ngIf="searchError" class="alert alert-warning mt-2 d-flex justify-content-between align-items-center">
+            <span>{{ searchError }}</span>
+            <button type="button" class="btn-close small" aria-label="Close" (click)="closeSearchResults()"></button>
+        </div>
+        <div *ngIf="!isSearching && searchResults.length > 0" class="search-results mt-2" style="max-height: 250px; overflow-y: auto;">
+            <div class="d-flex justify-content-end mb-1">
+                <button type="button" class="btn-close btn-sm" aria-label="Close Search Results" (click)="closeSearchResults()" title="Close search results"></button>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li *ngFor="let item of searchResults" class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
+                    <div class="d-flex align-items-center flex-grow-1 me-2 text-truncate-container">
+                        <img [src]="item.images?.[2]?.url || item.images?.[0]?.url || 'assets/no-image.jpg'" 
+                             alt="{{ item.name }}" 
+                             class="me-2 rounded" 
+                             [class.rounded-circle]="item.resultType === 'artist'"
+                             width="35" height="35" (error)="handleImageError($event)">
+                         <div class="text-truncate">
+                           <div class="fw-bold text-truncate" title="{{ item.name }}">{{ item.name }}</div>
+                           <!-- Display relevant sub-info -->
+                           <div *ngIf="item.resultType === 'album'" class="text-muted small text-truncate" title="{{ getArtistNames(item.artists) }}">{{ getArtistNames(item.artists) }}</div>
+                           <div *ngIf="item.resultType === 'playlist'" class="text-muted small text-truncate" title="{{ item.owner?.display_name }}">Owner: {{ item.owner?.display_name }}</div>
+                         </div>
+                    </div>
+                    <div class="action-buttons flex-shrink-0">
+                         <!-- Add Button based on type -->
+                         <button *ngIf="item.resultType === 'artist'" 
+                                 class="btn btn-sm btn-success py-0 px-1" 
+                                 (click)="addArtist(item)"
+                                 [disabled]="addedItemIds.has(item.id)">
+                             {{ addedItemIds.has(item.id) ? 'Followed ✔️' : 'Follow' }}
+                         </button>
+                          <button *ngIf="item.resultType === 'album'" 
+                                 class="btn btn-sm btn-success py-0 px-1" 
+                                 (click)="addAlbum(item)"
+                                 [disabled]="addedItemIds.has(item.id)">
+                              {{ addedItemIds.has(item.id) ? 'Saved ✔️' : 'Save Album' }}
+                         </button>
+                          <button *ngIf="item.resultType === 'playlist'" 
+                                 class="btn btn-sm btn-success py-0 px-1" 
+                                 (click)="addPlaylist(item)"
+                                  [disabled]="addedItemIds.has(item.id)">
+                               {{ addedItemIds.has(item.id) ? 'Followed ✔️' : 'Follow' }}
+                         </button>
+                    </div>
+                </li>
+            </ul>
+        </div>
+         <div *ngIf="!isSearching && searchQuery.trim() && searchResults.length === 0" class="alert alert-info mt-2 small d-flex justify-content-between align-items-center">
+            <span>No results found on Spotify for "{{ searchQuery }}".</span>
+            <button type="button" class="btn-close small" aria-label="Close" (click)="closeSearchResults()"></button>                
+         </div>
+    </div>
+    <!-- == End Search Spotify Section == -->
+     <!-- Display Area for General Success/Error Messages from Library Actions -->
+     <div *ngIf="feedbackMessage" 
+         class="alert alert-dismissible fade show small py-1 my-2" 
+         role="alert"
+         [ngClass]="{ 
+             'alert-success': feedbackMessage.type === 'success',
+             'alert-danger': feedbackMessage.type === 'error',
+             'alert-warning': feedbackMessage.type === 'warning',
+             'alert-info': feedbackMessage.type === 'info' 
+         }">
+        {{ feedbackMessage.text }}
+        <button type="button" class="btn-close small py-1" aria-label="Close" (click)="clearActionFeedback()"></button>
+    </div>
+    <!-- End General Message Display -->
+  
+      <!-- Tab Navigation -->
+      <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+          <a class="nav-link" 
+             [class.active]="activeTab === 'playlists'" 
+             (click)="selectTab('playlists')"
+             href="javascript:void(0)">Playlists ({{ allUserPlaylists.length }})</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" 
+             [class.active]="activeTab === 'artists'" 
+             (click)="selectTab('artists')"
+             href="javascript:void(0)">Followed Artists ({{ allFollowedArtists.length }})</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" 
+             [class.active]="activeTab === 'albums'" 
+             (click)="selectTab('albums')"
+             href="javascript:void(0)">Saved Albums ({{ allSavedAlbums.length }})</a>
+        </li>
+      </ul>
+  
+       <!-- General Loading/Error -->
+       <div *ngIf="(loadingArtists && activeTab === 'artists') || (loadingAlbums && activeTab === 'albums') || (loadingPlaylists && activeTab === 'playlists')" 
+            class="text-center my-5">
+           <div class="spinner-border text-success" role="status"><span class="visually-hidden">Loading...</span></div>
+           <p>Loading {{ activeTab }}...</p>
+       </div>
+  
+      <!-- Tab Content -->
+      <div class="tab-content">
+  
+        <!-- Playlists Tab -->
+        <div *ngIf="activeTab === 'playlists' && !loadingPlaylists">
+            <!-- Sort Controls -->
+          <div class="d-flex align-items-center mb-2">
+            <span class="me-2 text-muted small">Sort by:</span>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn" [class.btn-secondary]="playlistSortKey === 'name'" [class.btn-outline-secondary]="playlistSortKey !== 'name'" (click)="setSort('name')">
+                    Name {{ playlistSortKey === 'name' ? (playlistSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                </button>
+                <button type="button" class="btn" [class.btn-secondary]="playlistSortKey === 'owner'" [class.btn-outline-secondary]="playlistSortKey !== 'owner'" (click)="setSort('owner')">
+                    Owner {{ playlistSortKey === 'owner' ? (playlistSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                </button>
+                <button type="button" class="btn" [class.btn-secondary]="playlistSortKey === 'tracks'" [class.btn-outline-secondary]="playlistSortKey !== 'tracks'" (click)="setSort('tracks')">
+                    Tracks {{ playlistSortKey === 'tracks' ? (playlistSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                </button>
+            </div>
+        </div>
+          <div class="input-group mb-3">
+            <span class="input-group-text">Filter Playlists</span>
+            <input type="text" class="form-control" placeholder="Filter by name or owner..." 
+                   [(ngModel)]="playlistFilter" (ngModelChange)="onFilterInput()">
+          </div>
+          <ul class="list-group">
+             <li *ngFor="let playlist of filteredPlaylists" class="list-group-item d-flex justify-content-between align-items-center">
+                <!-- Left side: Image + Text -->
+               <div class="d-flex align-items-center flex-grow-1 me-2 text-truncate-container">
+                  <img [src]="playlist.images?.[0]?.url || 'assets/no-image.jpg'" alt="{{ playlist.name }}" class="me-3 rounded" (error)="handleImageError($event)">
+                  <div class="text-truncate">
+                     <div class="fw-bold text-truncate" title="{{ playlist.name }}">{{ playlist.name }}</div>
+                     <div class="text-muted small text-truncate" title="Owner: {{ playlist.owner.display_name || playlist.owner.id }}">
+                       Owner: {{ playlist.owner.display_name || playlist.owner.id }} ({{ playlist.tracks.total }} tracks)
+                     </div>
+                  </div>
+               </div>
+               <!-- Right side: Action Buttons Wrapper -->
+               <div class="action-buttons flex-shrink-0">
+                    <a [href]="playlist.external_urls?.spotify" target="_blank" class="btn btn-sm btn-outline-success ms-2" title="Open in Spotify">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-spotify" viewBox="0 0 16 16"> <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.669 11.538a.498.498 0 0 1-.686.165c-1.879-1.147-4.243-1.407-7.028-.77a.499.499 0 0 1-.222-.973c3.048-.696 5.662-.397 7.77.892a.5.5 0 0 1 .138.686m.979-2.178a.624.624 0 0 1-.858.205c-2.15-1.321-5.428-1.704-7.972-.932a.625.625 0 0 1-.362-1.194c2.905-.881 6.517-.454 8.986 1.063a.624.624 0 0 1 .206.858m.084-2.268C10.154 5.56 5.9 5.419 3.438 6.166a.748.748 0 1 1-.434-1.432c2.825-.857 7.523-.692 10.492 1.07a.747.747 0 1 1-.764 1.288"/> </svg>
+                   </a>
+                   <button class="btn btn-sm btn-outline-danger ms-2"  
+                     (click)="removePlaylist(playlist, $event)" 
+                     [disabled]="loadingProfile || !spotifyUserId"
+                     title="{{ loadingProfile || !spotifyUserId ? 'Loading...' : ((playlist.owner.id === spotifyUserId) ? 'Manage owned playlist...' : 'Unfollow Playlist') }}">
+                        ×
+                   </button>
+               </div>
+             </li>
+             <li *ngIf="filteredPlaylists.length === 0 && allUserPlaylists.length > 0" class="list-group-item text-muted">No playlists match your filter.</li>
+           <li *ngIf="allUserPlaylists.length === 0 && !loadingPlaylists" class="list-group-item text-muted">No saved playlists found.</li>
+          </ul>
+        </div>
+  
+        <!-- Artists Tab -->
+         <div *ngIf="activeTab === 'artists' && !loadingArtists">
+            <!-- Sort Controls -->
+           <div class="d-flex align-items-center mb-2">
+            <span class="me-2 text-muted small">Sort by:</span>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn" [class.btn-secondary]="artistSortKey === 'name'" [class.btn-outline-secondary]="artistSortKey !== 'name'" (click)="setSort('name')">
+                    Name {{ artistSortKey === 'name' ? (artistSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                </button>
+                <button type="button" class="btn" [class.btn-secondary]="artistSortKey === 'popularity'" [class.btn-outline-secondary]="artistSortKey !== 'popularity'" (click)="setSort('popularity')">
+                    Popularity {{ artistSortKey === 'popularity' ? (artistSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                </button>
+                <button type="button" class="btn" [class.btn-secondary]="artistSortKey === 'followers'" [class.btn-outline-secondary]="artistSortKey !== 'followers'" (click)="setSort('followers')">
+                    Followers {{ artistSortKey === 'followers' ? (artistSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                </button>
+            </div>
+        </div>
+           <div class="input-group mb-3">
+             <span class="input-group-text">Filter Artists</span>
+             <input type="text" class="form-control" placeholder="Filter by name..." 
+                    [(ngModel)]="artistFilter" (ngModelChange)="onFilterInput()">
+           </div>
+           <ul class="list-group">
+              <li *ngFor="let artist of filteredArtists" class="list-group-item d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center flex-grow-1 me-2 text-truncate">
+                    <img [src]="artist.images?.[2]?.url || artist.images?.[0]?.url || 'assets/no-image.jpg'" alt="{{ artist.name }}" class="me-3 rounded-circle library-image" (error)="handleImageError($event)"> 
+                   <div class="text-truncate">
+                      <div class="fw-bold text-truncate" title="{{ artist.name }}">{{ artist.name }}
+                        <!-- Display Popularity Badge -->
+                        <span *ngIf="artist.popularity !== undefined" class="badge bg-secondary ms-2" title="Popularity Score (0-100)">
+                            Popularity: {{ artist.popularity }}
+                          </span>
+                      </div>
+                       <!-- Display Follower Count -->
+                       <div *ngIf="artist.followers?.total !== undefined" class="text-muted small text-truncate">
+                        {{ artist.followers?.total | number }} Followers 
+                      </div>
+                   </div>
+                </div>
+                <!-- Right side: Action Buttons Wrapper -->
+                <div class="action-buttons flex-shrink-0">
+                    <a [href]="artist.external_urls?.spotify" target="_blank" class="btn btn-sm btn-outline-success ms-2" title="Open in Spotify">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-spotify" viewBox="0 0 16 16"> <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.669 11.538a.498.498 0 0 1-.686.165c-1.879-1.147-4.243-1.407-7.028-.77a.499.499 0 0 1-.222-.973c3.048-.696 5.662-.397 7.77.892a.5.5 0 0 1 .138.686m.979-2.178a.624.624 0 0 1-.858.205c-2.15-1.321-5.428-1.704-7.972-.932a.625.625 0 0 1-.362-1.194c2.905-.881 6.517-.454 8.986 1.063a.624.624 0 0 1 .206.858m.084-2.268C10.154 5.56 5.9 5.419 3.438 6.166a.748.748 0 1 1-.434-1.432c2.825-.857 7.523-.692 10.492 1.07a.747.747 0 1 1-.764 1.288"/> </svg>
+                     </a>
+                    <button class="btn btn-sm btn-outline-danger ms-2" (click)="removeArtist(artist, $event)" title="Unfollow Artist">
+                      ×
+                    </button>
+                </div>
+              </li>
+                <li *ngIf="filteredArtists.length === 0 && allFollowedArtists.length > 0" class="list-group-item text-muted">No artists match your filter.</li>
+                <li *ngIf="allFollowedArtists.length === 0 && !loadingArtists" class="list-group-item text-muted">You are not following any artists.</li>
+           </ul>
+         </div>
+  
+        <!-- Albums Tab -->
+         <div *ngIf="activeTab === 'albums' && !loadingAlbums">
+             <!-- Sort Controls -->
+             <div class="d-flex align-items-center mb-2">
+                <span class="me-2 text-muted small">Sort by:</span>
+                <div class="btn-group btn-group-sm flex-wrap">
+                    <button type="button" class="btn" [class.btn-secondary]="albumSortKey === 'albumName'" [class.btn-outline-secondary]="albumSortKey !== 'albumName'" (click)="setSort('albumName')">
+                        Album {{ albumSortKey === 'albumName' ? (albumSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                    </button>
+                     <button type="button" class="btn" [class.btn-secondary]="albumSortKey === 'artistName'" [class.btn-outline-secondary]="albumSortKey !== 'artistName'" (click)="setSort('artistName')">
+                        Artist {{ albumSortKey === 'artistName' ? (albumSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                    </button>
+                    <button type="button" class="btn" [class.btn-secondary]="albumSortKey === 'releaseDate'" [class.btn-outline-secondary]="albumSortKey !== 'releaseDate'" (click)="setSort('releaseDate')">
+                        Released {{ albumSortKey === 'releaseDate' ? (albumSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                    </button>
+                    <button type="button" class="btn" [class.btn-secondary]="albumSortKey === 'popularity'" [class.btn-outline-secondary]="albumSortKey !== 'popularity'" (click)="setSort('popularity')">
+                        Popularity {{ albumSortKey === 'popularity' ? (albumSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                    </button>
+                    <button type="button" class="btn" [class.btn-secondary]="albumSortKey === 'addedDate'" [class.btn-outline-secondary]="albumSortKey !== 'addedDate'" (click)="setSort('addedDate')">
+                        Date Added {{ albumSortKey === 'addedDate' ? (albumSortDirection === 'asc' ? '▲' : '▼') : '' }}
+                    </button>
+                </div>
+            </div>
+            <div class="input-group mb-3">
+              <span class="input-group-text">Filter Albums</span>
+              <input type="text" class="form-control" placeholder="Filter by title or artist..." 
+                     [(ngModel)]="albumFilter" (ngModelChange)="onFilterInput()">
+            </div>
+            <ul class="list-group">
+               <li *ngFor="let item of filteredAlbums" class="list-group-item d-flex justify-content-between align-items-center">
+                 <div class="d-flex align-items-center flex-grow-1 me-2 text-truncate">
+                    <img [src]="item.album.images?.[2]?.url || item.album.images?.[0]?.url || 'assets/no-image.jpg'" alt="{{ item.album.name }}" class="me-3 rounded library-image" (error)="handleImageError($event)">
+                    <div class="text-truncate">
+                       <div class="fw-bold text-truncate" title="{{ item.album.name }}">{{ item.album.name }}</div>
+                       <span *ngIf="item.album.release_date" class="text-muted fw-normal"> ({{ item.album.release_date | date:'yyyy' }})</span>
+                        <!-- Add Popularity Badge -->
+                         <span *ngIf="item.album.popularity !== undefined" class="badge bg-secondary ms-2" title="Popularity Score (0-100)">
+                           Popularity: {{ item.album.popularity }}
+                         </span>
+                       <div class="text-muted small text-truncate" title="{{ getArtistNames(item.album.artists) }}">
+                         {{ getArtistNames(item.album.artists) }}
+                       </div>
+                        <div class="text-muted small text-truncate">Added: {{ item.added_at | date:'mediumDate' }}</div> <!-- Show added date -->
+                    </div>
+                 </div>
+                 <!-- Right side: Action Buttons Wrapper -->
+                 <div class="action-buttons flex-shrink-0">
+                    <a [href]="item.album.external_urls?.spotify" target="_blank" class="btn btn-sm btn-outline-success ms-2" title="Open in Spotify">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-spotify" viewBox="0 0 16 16"> <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.669 11.538a.498.498 0 0 1-.686.165c-1.879-1.147-4.243-1.407-7.028-.77a.499.499 0 0 1-.222-.973c3.048-.696 5.662-.397 7.77.892a.5.5 0 0 1 .138.686m.979-2.178a.624.624 0 0 1-.858.205c-2.15-1.321-5.428-1.704-7.972-.932a.625.625 0 0 1-.362-1.194c2.905-.881 6.517-.454 8.986 1.063a.624.624 0 0 1 .206.858m.084-2.268C10.154 5.56 5.9 5.419 3.438 6.166a.748.748 0 1 1-.434-1.432c2.825-.857 7.523-.692 10.492 1.07a.747.747 0 1 1-.764 1.288"/> </svg>
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger ms-2" (click)="removeAlbum(item, $event)" title="Remove Album from Library">
+                        ×
+                    </button>
+                 </div>
+               </li>
+                <li *ngIf="filteredAlbums.length === 0 && allSavedAlbums.length > 0" class="list-group-item text-muted">No albums match your filter.</li>
+                <li *ngIf="allSavedAlbums.length === 0 && !loadingAlbums" class="list-group-item text-muted">No saved albums found.</li>
+            </ul>
+         </div>
+  
+      </div> <!-- End Tab Content -->
+  
+    </div> <!-- End *ngIf="isLoggedIn" -->
+  </div>

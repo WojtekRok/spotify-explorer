@@ -1,0 +1,53 @@
+.list-group-item {
+    // Ensure items have enough vertical space if content wraps
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    
+    // Styles FOR ELEMENTS INSIDE .list-group-item
+    
+    img.library-image, // Target the specific image using its class
+    img.me-3 { // Or target based on existing Bootstrap classes if consistent
+      width: 100px;  
+      height: 100px;
+      object-fit: cover; 
+    }
+  
+    // Target the container for the action buttons
+    .action-buttons {
+       display: flex;
+       flex-direction: row; // <--- Explicitly set to row
+       align-items: center; // Keep items vertically centered
+       gap: 0.35rem; 
+    }
+  
+    // Optional button-specific styles within action-buttons
+    .action-buttons .btn-spotify {
+      // Custom styles for Spotify button if needed
+    }
+    .action-buttons .btn-remove {
+      // Custom styles for remove button if needed
+    }
+    
+     // Ensure text truncation works well with larger image
+     .text-truncate-container {
+        min-width: 0; // Important for flexbox truncation
+     }
+  
+  } // End of .list-group-item styles
+  
+  // Search results specific styles (if needed, keep separate)
+  .search-results {
+     .list-group-item {
+         // Maybe different padding/image sizes for search results?
+         padding: 0.5rem 0.5rem; // Example smaller padding
+  
+         img {
+             width: 35px;
+             height: 35px;
+         }
+         .btn { // Smaller buttons in search results
+             padding: 0.1rem 0.4rem;
+             font-size: 0.8em;
+         }
+     }
+  }

@@ -1,1 +1,163 @@
-<p>mix-generator works!</p>
+<!-- src/app/features/mix-generator/mix-generator.component.html -->
+<div class="container my-4">
+    <h1 class="mb-4">Mix Generator</h1>
+  
+    <!-- Login Prompt -->
+    <div *ngIf="!isLoggedIn" class="alert alert-warning">
+      Please <a (click)="login()" href="javascript:void(0)">connect with Spotify</a> to generate mixes and save playlists.
+    </div>
+  
+    <!-- Main Generator Area -->
+    <div *ngIf="isLoggedIn">
+  
+      <!-- == Configuration Section == -->
+      <div class="generator-config mb-4 p-3 border rounded bg-light">
+        <h4 class="mb-3">Customize Your Mix</h4>
+  
+        <!-- 1. Length Selection -->
+        <div class="mb-3">
+          <label class="form-label d-block fw-bold">Number of Tracks</label>
+          <div class="btn-group" role="group" aria-label="Select number of tracks">
+            <button type="button" class="btn" 
+                    [ngClass]="selectedLength === 10 ? 'btn-primary' : 'btn-outline-primary'" 
+                    (click)="selectedLength = 10">10</button>
+            <button type="button" class="btn" 
+                    [ngClass]="selectedLength === 30 ? 'btn-primary' : 'btn-outline-primary'" 
+                    (click)="selectedLength = 30">30</button>
+            <button type="button" class="btn" 
+                    [ngClass]="selectedLength === 50 ? 'btn-primary' : 'btn-outline-primary'" 
+                    (click)="selectedLength = 50">50</button>
+          </div>
+        </div>        
+  
+        <!-- 3. Source Mode Selection (Updated) -->
+        <div class="mb-3">
+          <label class="form-label d-block fw-bold">Source for Mix</label>
+          <div *ngIf="loadingFollowed || loadingPlaylists" class="text-muted small">Loading library data...</div>
+          <div *ngIf="!loadingFollowed && !loadingPlaylists" class="btn-group" role="group" aria-label="Select mix source mode">
+            <button type="button" class="btn" 
+                    [ngClass]="selectedSourceMode === 'followedOnly' ? 'btn-primary' : 'btn-outline-primary'" 
+                    (click)="selectedSourceMode = 'followedOnly'" 
+                    [disabled]="followedArtists.length === 0"
+                    title="{{ followedArtists.length === 0 ? 'Requires followed artists' : 'Only use tracks from artists you follow' }}">
+              Followed Only
+            </button>
+            <button type="button" class="btn" 
+                    [ngClass]="selectedSourceMode === 'mix' ? 'btn-primary' : 'btn-outline-primary'" 
+                    (click)="selectedSourceMode = 'mix'"
+                    [disabled]="followedArtists.length === 0 || userPlaylists.length === 0"
+                     title="{{ (followedArtists.length === 0 || userPlaylists.length === 0) ? 'Requires followed artists AND playlists' : 'Mix followed artists & your playlists' }}">
+              Mix (Followed + Playlists)
+            </button>
+            <button type="button" class="btn" 
+                    [ngClass]="selectedSourceMode === 'playlistsOnly' ? 'btn-primary' : 'btn-outline-primary'" 
+                    (click)="selectedSourceMode = 'playlistsOnly'"
+                     [disabled]="userPlaylists.length === 0"
+                     title="{{ userPlaylists.length === 0 ? 'Requires saved playlists' : 'Only use tracks from your playlists' }}">
+              Playlists Only
+            </button>
+          </div>
+           <div *ngIf="!loadingFollowed && followedArtists.length === 0 && (selectedSourceMode === 'followedOnly' || selectedSourceMode === 'mix')" class="text-danger small mt-1">
+               Cannot use 'Followed Only' or 'Mix' mode without followed artists.
+           </div>
+            <div *ngIf="!loadingPlaylists && userPlaylists.length === 0 && (selectedSourceMode === 'playlistsOnly' || selectedSourceMode === 'mix')" class="text-danger small mt-1">
+               Cannot use 'Playlists Only' or 'Mix' mode without saved playlists.
+           </div>
+        </div>        
+  
+      </div> <!-- End Config Section -->
+  
+      <!-- Generate Button -->
+      <div class="text-center mb-4">
+          <button class="btn btn-success btn-lg" (click)="generateMix()" [disabled]="generatingMix || !isLoggedIn">
+              <span *ngIf="generatingMix" class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+              <span role="status">{{ generatingMix ? 'Generating...' : 'GENERATE NOW' }}</span>
+          </button>
+      </div>
+  
+       <!-- General Error Display -->
+      <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+
+      <!-- == Results Section == -->
+      <div *ngIf="generatingMix || generatedTracks.length > 0" class="results-section mt-4">
+        <!-- == Loading Indicator == -->
+        <div *ngIf="generatingMix" class="text-center my-5 p-4 border rounded bg-white shadow-sm">          
+          <img src="assets/cooking-icon.png" alt="Cooking..." class="loading-image mb-3">
+          <div class="cooking-animation mb-3">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+        </div>
+         <h4 class="mb-3">Generated Mix ({{ generatedTracks.length }} Tracks)</h4>
+         
+         <!-- Result List -->
+         <ul *ngIf="!generatingMix && generatedTracks.length > 0" class="list-group mb-3">
+            <li *ngFor="let item of generatedTracks; let i = index" class="list-group-item d-flex justify-content-between align-items-center">
+               <div class="d-flex align-items-center flex-grow-1 me-2 text-truncate">
+                   <span class="me-2 text-muted small" style="min-width: 2em;">{{ i + 1 }}.</span>
+                    <img [src]="item.track.album?.images?.[2]?.url || item.track.album?.images?.[0]?.url || 'assets/no-image.jpg'" 
+                         alt="{{ item.track.album?.name || 'Album Art' }}" 
+                         class="me-3 rounded" 
+                         width="40" height="40"
+                         (error)="handleImageError($event)">
+                   <div class="text-truncate">
+                      <div class="fw-bold text-truncate" title="{{ item.track.name }}">{{ item.track.name }}</div>
+                      <div class="text-muted text-truncate small" title="{{ getArtistNames(item.track.artists) }}">
+                        {{ getArtistNames(item.track.artists) }}
+                      </div>
+                      <!-- Display Source Info -->
+                      <div class="text-muted fst-italic source-info" style="font-size: 0.8em;">
+                        <span *ngIf="item.sourceType === 'playlist'">from playlist: "{{ item.sourceName }}"</span>
+                        <span *ngIf="item.sourceType === 'followedArtist'">from followed: {{ item.sourceName }}</span>
+                        <!-- Add more types if needed -->
+                      </div>
+                   </div>
+               </div>
+               
+               <div class="d-flex align-items-center flex-shrink-0">
+                    <a [href]="item.track.external_urls?.spotify" target="_blank" class="btn btn-sm btn-outline-success ms-2" title="Open track in Spotify">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-spotify" viewBox="0 0 16 16"> <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.669 11.538a.498.498 0 0 1-.686.165c-1.879-1.147-4.243-1.407-7.028-.77a.499.499 0 0 1-.222-.973c3.048-.696 5.662-.397 7.77.892a.5.5 0 0 1 .138.686m.979-2.178a.624.624 0 0 1-.858.205c-2.15-1.321-5.428-1.704-7.972-.932a.625.625 0 0 1-.362-1.194c2.905-.881 6.517-.454 8.986 1.063a.624.624 0 0 1 .206.858m.084-2.268C10.154 5.56 5.9 5.419 3.438 6.166a.748.748 0 1 1-.434-1.432c2.825-.857 7.523-.692 10.492 1.07a.747.747 0 1 1-.764 1.288"/> </svg>
+                    </a>
+                     <button class="btn btn-sm btn-outline-danger ms-2" (click)="removeTrack(i)" title="Remove track from list">
+                       ×
+                     </button>
+               </div>
+            </li>
+         </ul>
+    
+  
+         <!-- == Save Section == -->
+          <div *ngIf="!generatingMix && generatedTracks.length > 0" class="save-section mt-4 p-3 border rounded bg-light">
+              <h5 class="mb-3">Save Mix to Spotify</h5>
+              
+              <div *ngIf="!saveSuccess">
+                   <div class="mb-3">
+                      <label for="playlistName" class="form-label">Playlist Name</label>
+                      <input type="text" id="playlistName" class="form-control" [(ngModel)]="playlistName" placeholder="Enter playlist name...">
+                   </div>
+                    <div class="form-check mb-3">
+                      <input class="form-check-input" type="checkbox" id="isPublicCheck" [(ngModel)]="isPlaylistPublic">
+                      <label class="form-check-label" for="isPublicCheck">
+                          Make playlist public
+                      </label>
+                   </div>
+  
+                   <button class="btn btn-primary" (click)="savePlaylist()" [disabled]="savingPlaylist || !playlistName.trim()">
+                       <span *ngIf="savingPlaylist" class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                       <span role="status">{{ savingPlaylist ? 'Saving...' : 'Save Playlist' }}</span>
+                   </button>
+                   <div *ngIf="saveError" class="alert alert-danger mt-3">{{ saveError }}</div>
+              </div>
+  
+              <div *ngIf="saveSuccess" class="alert alert-success">
+                  Playlist saved successfully! 
+                  <a *ngIf="createdPlaylistUrl" [href]="createdPlaylistUrl" target="_blank" class="alert-link">View it on Spotify</a>.
+              </div>
+          </div>
+  
+      </div> <!-- End Results Section -->
+  
+  
+    </div> <!-- End *ngIf="isLoggedIn" -->
+  </div>

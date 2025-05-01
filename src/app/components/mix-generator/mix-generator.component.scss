@@ -1,0 +1,55 @@
+/* Style for the loading animation container */
+.cooking-animation {
+    display: flex; /* Use flexbox to lay out dots */
+    justify-content: center; /* Center dots horizontally */
+    align-items: center; /* Align dots vertically */
+    min-height: 30px; /* Give it some minimum height */
+  }
+  /* Individual dot styling */
+.cooking-animation .dot {
+    display: inline-block;
+    width: 10px;           /* Size of each dot */
+    height: 10px;
+    margin: 0 4px;          /* Space between dots */
+    // Use your app's primary or success color - using Bootstrap's success green as example
+    background-color: var(--bs-success, #198754); 
+    border-radius: 50%;     /* Make them round */
+    
+    /* Apply the animation */
+    /* name duration timing-function delay iteration-count direction fill-mode */
+    animation: cooking-pulse 1.4s infinite ease-in-out both; 
+  }
+  
+  /* Stagger the animation start for each dot */
+  .cooking-animation .dot:nth-child(1) {
+    animation-delay: -0.32s;
+  }
+  
+  .cooking-animation .dot:nth-child(2) {
+    animation-delay: -0.16s;
+  }
+  
+  .cooking-animation .dot:nth-child(3) {
+     /* No delay needed for the third one relative to the base animation */
+     animation-delay: 0s; 
+  }
+  
+  /* Define the keyframes for the pulsing effect */
+  @keyframes cooking-pulse {
+    0%, 80%, 100% {
+      transform: scale(0.4); /* Start/end smaller */
+      opacity: 0.5;
+    }
+    40% {
+      transform: scale(1.0); /* Pulse to full size */
+      opacity: 1;
+    }
+  }
+  /* Style for the loading image */
+.loading-image {
+    display: block;      /* Prevents extra space below if inline */
+    margin-left: auto;   /* Center the image horizontally */
+    margin-right: auto;
+    max-width: 250px;    /* Set a maximum width - ADJUST AS NEEDED */
+    height: auto;        /* Maintain aspect ratio */
+  }

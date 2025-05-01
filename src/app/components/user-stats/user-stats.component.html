@@ -1,1 +1,133 @@
-<p>user-stats works!</p>
+<div class="container my-4">
+    <h1 class="mb-4">Your Spotify Stats</h1>
+  
+    <!-- Login Prompt -->
+    <div *ngIf="!isLoggedIn" class="alert alert-warning">
+      Please <a (click)="login()" href="javascript:void(0)">connect with Spotify</a> to view your stats.
+    </div>
+  
+    <!-- Stats Display Area -->
+    <div *ngIf="isLoggedIn">
+  
+      <!-- Time Period Buttons -->
+    <div class="mb-3">
+        <label class="form-label d-block">Time Period</label> 
+        <div class="btn-group" role="group" aria-label="Select time period">
+          <button type="button" class="btn" 
+                  [ngClass]="selectedTimeRange === 'short_term' ? 'btn-dark' : 'btn-outline-dark'" 
+                  (click)="setTimeRange('short_term')">Last Month</button>
+          <button type="button" class="btn" 
+                  [ngClass]="selectedTimeRange === 'medium_term' ? 'btn-dark' : 'btn-outline-dark'" 
+                  (click)="setTimeRange('medium_term')">Last 6 Months</button>
+          <button type="button" class="btn" 
+                  [ngClass]="selectedTimeRange === 'long_term' ? 'btn-dark' : 'btn-outline-dark'" 
+                  (click)="setTimeRange('long_term')">All Time</button> 
+                  <!-- Note: Spotify doesn't have an explicit 'Last Year'. 'long_term' is the closest for "All Time". 'medium_term' is approx 6 months -->
+        </div>
+      </div>
+  
+      <!-- Length Buttons -->
+       <div class="mb-4">
+          <label class="form-label d-block">Length</label>
+          <div class="btn-group" role="group" aria-label="Select list length">
+              <button type="button" class="btn" 
+                      [ngClass]="selectedLength === 10 ? 'btn-dark' : 'btn-outline-dark'" 
+                      (click)="setLength(10)">Top 10</button>
+              <button type="button" class="btn" 
+                      [ngClass]="selectedLength === 50 ? 'btn-dark' : 'btn-outline-dark'" 
+                      (click)="setLength(50)">Top 50</button>
+          </div>
+      </div>
+  
+      <div class="row g-5">
+        <!-- Top Tracks Column -->
+        <div class="col-lg-6">
+          <h2>Your Top Tracks <span class="text-muted fs-6">({{ selectedTimeRange === 'short_term' ? 'Last Month' : selectedTimeRange === 'medium_term' ? 'Last 6 Months' : 'All Time' }} / Top {{ selectedLength }})</span></h2>
+          <div *ngIf="loadingTopTracks" class="text-center"><div class="spinner-border text-success my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>
+          <div *ngIf="errorTopTracks" class="alert alert-danger">{{ errorTopTracks }}</div>
+          
+          <ol *ngIf="!loadingTopTracks && !errorTopTracks && topTracks.length > 0" class="list-group list-group-numbered">
+            <li *ngFor="let track of topTracks" class="list-group-item d-flex align-items-center">
+              <img [src]="track.album.images[2]?.url || track.album.images[0]?.url || 'assets/no-image.jpg'" 
+                   alt="{{ track.album.name }}" 
+                   class="me-3 rounded" 
+                   width="50" height="50"
+                   (error)="handleImageError($event)">
+              <div class="flex-grow-1 text-truncate">
+                <div class="fw-bold text-truncate" title="{{ track.name }}">{{ track.name }}</div>
+                <div class="text-muted text-truncate" title="{{ getArtistNames(track.artists) }}">
+                  {{ getArtistNames(track.artists) }}
+                </div>
+              </div>
+              <a [href]="track.external_urls?.spotify" target="_blank" class="btn btn-sm btn-outline-success ms-2" title="Open in Spotify">
+                <i class="bi bi-spotify"></i> <!-- Requires Bootstrap Icons or similar -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-spotify" viewBox="0 0 16 16"> <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.669 11.538a.498.498 0 0 1-.686.165c-1.879-1.147-4.243-1.407-7.028-.77a.499.499 0 0 1-.222-.973c3.048-.696 5.662-.397 7.77.892a.5.5 0 0 1 .138.686m.979-2.178a.624.624 0 0 1-.858.205c-2.15-1.321-5.428-1.704-7.972-.932a.625.625 0 0 1-.362-1.194c2.905-.881 6.517-.454 8.986 1.063a.624.624 0 0 1 .206.858m.084-2.268C10.154 5.56 5.9 5.419 3.438 6.166a.748.748 0 1 1-.434-1.432c2.825-.857 7.523-.692 10.492 1.07a.747.747 0 1 1-.764 1.288"/> </svg>
+              </a>
+            </li>
+          </ol>
+          <div *ngIf="!loadingTopTracks && !errorTopTracks && topTracks.length === 0" class="alert alert-info">No top tracks found for this period.</div>
+        </div>
+  
+        <!-- Top Artists Column -->
+        <div class="col-lg-6">
+          <h2>Your Top Artists <span class="text-muted fs-6">({{ selectedTimeRange === 'short_term' ? 'Last Month' : selectedTimeRange === 'medium_term' ? 'Last 6 Months' : 'All Time' }} / Top {{ selectedLength }})</span></h2>
+          <div *ngIf="loadingTopArtists" class="text-center"><div class="spinner-border text-success my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>
+          <div *ngIf="errorTopArtists" class="alert alert-danger">{{ errorTopArtists }}</div>
+  
+          <ol *ngIf="!loadingTopArtists && !errorTopArtists && topArtists.length > 0" class="list-group list-group-numbered">
+            <li *ngFor="let artist of topArtists" class="list-group-item d-flex align-items-center">
+               <img [src]="artist.images[2]?.url || artist.images[0]?.url || 'assets/no-image.jpg'" 
+                    alt="{{ artist.name }}" 
+                    class="me-3 rounded-circle"
+                    width="50" height="50"
+                    (error)="handleImageError($event)">
+              <div class="flex-grow-1 text-truncate">
+                <div class="fw-bold text-truncate" title="{{ artist.name }}">{{ artist.name }}</div>
+                 <!-- Optional: Display genres -->
+                 <div *ngIf="artist.genres.length > 0" class="text-muted text-truncate small" title="{{ artist.genres.join(', ') }}">
+                     {{ artist.genres.join(', ') }}
+                  </div>
+              </div>
+               <a [href]="artist.external_urls?.spotify" target="_blank" class="btn btn-sm btn-outline-success ms-2" title="Open in Spotify">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-spotify" viewBox="0 0 16 16"> <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.669 11.538a.498.498 0 0 1-.686.165c-1.879-1.147-4.243-1.407-7.028-.77a.499.499 0 0 1-.222-.973c3.048-.696 5.662-.397 7.77.892a.5.5 0 0 1 .138.686m.979-2.178a.624.624 0 0 1-.858.205c-2.15-1.321-5.428-1.704-7.972-.932a.625.625 0 0 1-.362-1.194c2.905-.881 6.517-.454 8.986 1.063a.624.624 0 0 1 .206.858m.084-2.268C10.154 5.56 5.9 5.419 3.438 6.166a.748.748 0 1 1-.434-1.432c2.825-.857 7.523-.692 10.492 1.07a.747.747 0 1 1-.764 1.288"/> </svg>
+              </a>
+            </li>
+          </ol>
+           <div *ngIf="!loadingTopArtists && !errorTopArtists && topArtists.length === 0" class="alert alert-info">No top artists found for this period.</div>
+        </div>
+      </div>
+  
+      <!-- Recently Played Section -->
+      <div class="row mt-5">
+         <div class="col-12">
+              <h2>Recently Played Tracks</h2>
+              <div *ngIf="loadingRecent" class="text-center"><div class="spinner-border text-success my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>
+              <div *ngIf="errorRecent" class="alert alert-danger">{{ errorRecent }}</div>
+  
+              <ul *ngIf="!loadingRecent && !errorRecent && recentTracks.length > 0" class="list-group">
+                <!-- Note: Iterate recentTracks, access track data via item.track -->
+                <li *ngFor="let item of recentTracks" class="list-group-item d-flex align-items-center">
+                  <img [src]="item.track.album.images[2]?.url || item.track.album.images[0]?.url || 'assets/no-image.jpg'" 
+                       alt="{{ item.track.album.name }}" 
+                       class="me-3 rounded" 
+                       width="50" height="50"
+                       (error)="handleImageError($event)">
+                  <div class="flex-grow-1 text-truncate">
+                    <div class="fw-bold text-truncate" title="{{ item.track.name }}">{{ item.track.name }}</div>
+                    <div class="text-muted text-truncate" title="{{ getArtistNames(item.track.artists) }}">
+                      {{ getArtistNames(item.track.artists) }}
+                    </div>
+                     <!-- Use DatePipe to format played_at -->
+                    <div class="text-muted small">Played: {{ item.played_at | date:'short' }}</div> 
+                  </div>
+                  <a [href]="item.track.external_urls?.spotify" target="_blank" class="btn btn-sm btn-outline-success ms-2" title="Open in Spotify">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-spotify" viewBox="0 0 16 16"> <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.669 11.538a.498.498 0 0 1-.686.165c-1.879-1.147-4.243-1.407-7.028-.77a.499.499 0 0 1-.222-.973c3.048-.696 5.662-.397 7.77.892a.5.5 0 0 1 .138.686m.979-2.178a.624.624 0 0 1-.858.205c-2.15-1.321-5.428-1.704-7.972-.932a.625.625 0 0 1-.362-1.194c2.905-.881 6.517-.454 8.986 1.063a.624.624 0 0 1 .206.858m.084-2.268C10.154 5.56 5.9 5.419 3.438 6.166a.748.748 0 1 1-.434-1.432c2.825-.857 7.523-.692 10.492 1.07a.747.747 0 1 1-.764 1.288"/> </svg>
+                  </a>
+                </li>
+              </ul>
+              <div *ngIf="!loadingRecent && !errorRecent && recentTracks.length === 0" class="alert alert-info">No recently played tracks found.</div>
+         </div>
+      </div>
+  
+    </div> <!-- End *ngIf="isLoggedIn" -->
+  </div>
