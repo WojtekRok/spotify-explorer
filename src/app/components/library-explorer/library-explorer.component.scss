@@ -18,15 +18,7 @@
        flex-direction: row; // <--- Explicitly set to row
        align-items: center; // Keep items vertically centered
        gap: 0.35rem; 
-    }
-  
-    // Optional button-specific styles within action-buttons
-    .action-buttons .btn-spotify {
-      // Custom styles for Spotify button if needed
-    }
-    .action-buttons .btn-remove {
-      // Custom styles for remove button if needed
-    }
+    }   
     
      // Ensure text truncation works well with larger image
      .text-truncate-container {
@@ -50,4 +42,40 @@
              font-size: 0.8em;
          }
      }
+  }
+
+  .search-input-padding {
+    // Adjust padding-right to accommodate the button width + desired spacing
+    padding-right: 2.5rem; // Example value, adjust as needed
+  }
+  // Styling for the inline clear button ('X')
+.btn-close-input {
+    // Positioning
+    position: absolute;
+    top: 50%;
+    right: 0.75rem; // Adjust horizontal position
+    transform: translateY(-50%); // Vertical centering
+    z-index: 5; // Ensure it's above the input field
+  
+    // Appearance (make it subtle)
+    padding: 0.25rem 0.5rem;
+    line-height: 1;
+    background-color: transparent;
+    border: none;
+    color: #6c757d; // Default secondary text color
+    opacity: 0.8;
+    cursor: pointer;
+  
+    &:hover,
+    &:focus {
+      opacity: 1;
+      color: #000; // Darken on hover/focus
+      box-shadow: none; // Remove default button focus shadow if needed
+    }
+  
+    // Adjust SVG size if necessary
+    svg {
+      width: 1.2em;  // Make icon slightly smaller
+      height: 1.2em;
+    }
   }

@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject } from 'rxjs';
+import { Subject, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import {
     SpotifyService,
@@ -63,12 +63,11 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
   searchQuery: string = ''; 
   searchResults: any[] = []; // Store combined results with type info
   isSearching: boolean = false;
-  searchError: string | null = null;
-  // Keep track of added items to update button state
+  searchError: string | null = null; // Keep track of added items to update button state
   addedItemIds = new Set<string>(); 
-  // Add state for specific add action feedback
-  // addSuccessMessage: string | null = null;
-  // addErrorMessage: string | null = null;
+  // --- Debounce Search Input ---
+  private searchQueryChanged = new Subject<string>();
+  private searchSubscription: Subscription | null = null;
 
   // --- Sorting State ---
   playlistSortKey: PlaylistSortKey = 'name'; // Default sort
@@ -94,11 +93,15 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
             // Call the correct initial data loading method
             this.loadInitialData(); 
         }
+      //this.setupFiltering(); // For library filtering
+      this.setupSearchDebounce();
   }
 
   ngOnDestroy(): void {
+    this.searchSubscription?.unsubscribe();
     if (this.feedbackTimeout) { clearTimeout(this.feedbackTimeout); }
   }
+
   loadInitialData(): void {
     console.log("[DEBUG] loadInitialData called."); // Add this to confirm execution
     this.loadUserProfile();     // <<< ENSURE THIS CALL IS PRESENT
@@ -132,6 +135,31 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
       console.log('[Component DEBUG] loadUserProfile finally block. loadingProfile =', this.loadingProfile, 'spotifyUserId =', this.spotifyUserId); // Verify final state
       this.cdRef.detectChanges(); // Trigger change detection
     }
+  }
+
+  // --- Setup Search Debounce ---
+  setupSearchDebounce(): void {
+    this.searchSubscription = this.searchQueryChanged.pipe(
+        debounceTime(400), // Wait for 400ms pause in typing
+        distinctUntilChanged() // Only emit if value has changed
+    ).subscribe(query => {
+        // Perform search only if query is not empty after debounce
+        if (query.trim()) {
+            this.performSearch(query); // Pass the debounced query
+        } else {
+            // If query becomes empty, clear results
+            this.searchResults = [];
+            this.showSearchResults = false;
+            this.searchError = null;
+            this.cdRef.detectChanges();
+        }
+    });
+  }
+
+  // Method bound to (ngModelChange) on the input
+  onSearchQueryInput(): void {
+    // Push the current value of searchQuery onto the Subject
+    this.searchQueryChanged.next(this.searchQuery);
   }
 
   // --- Tab Selection & Data Loading ---
@@ -297,9 +325,8 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
     }
   }
   
-  async performSearch(): Promise<void> {
-    const trimmedQuery = this.searchQuery.trim();  
-    if (!trimmedQuery) {
+  async performSearch(debouncedQuery: string): Promise<void> {
+    if (!debouncedQuery) {
       this.searchResults = [];
       this.showSearchResults = false;
       return;
@@ -308,12 +335,14 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
     this.searchError = null;
     this.searchResults = [];
     this.showSearchResults = true;
-    this.clearActionFeedback();  
+    this.clearActionFeedback(); 
+
     const searchTypeMap: Record<string, 'artist' | 'album' | 'playlist'> = {
       artists: 'artist',
       albums: 'album',
       playlists: 'playlist',
-    };  
+    }; 
+
     const apiSearchType = searchTypeMap[this.activeTab];
   
     if (!apiSearchType) {
@@ -326,31 +355,38 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
       this.cdRef.detectChanges();
       return;
     }  
-    console.log(`Searching Spotify for type '${apiSearchType}': ${trimmedQuery}`);  
+    console.log(`Searching Spotify for type '${apiSearchType}': ${debouncedQuery}`);  
     try {
-      const data = await this.spotifyService.search(trimmedQuery, apiSearchType);
-  
+      const data = await this.spotifyService.search(debouncedQuery, apiSearchType, 50);
+      let rawResults: any[] = []; 
       switch (apiSearchType) {
         case 'artist':
-          this.searchResults = data.artists?.items.map((item: any) => ({
-            ...item,
-            resultType: 'artist',
-          })) || [];
+          rawResults = data.artists?.items || [];
           break;
         case 'album':
-          this.searchResults = data.albums?.items.map((item: any) => ({
-            ...item,
-            resultType: 'album',
-          })) || [];
+          rawResults = data.albums?.items || [];
           break;
         case 'playlist':
-          this.searchResults = data.playlists?.items.map((item: any) => ({
-            ...item,
-            resultType: 'playlist',
-          })) || [];
+          rawResults = data.playlists?.items || [];
+          const originalCount = rawResults.length;
+          rawResults = rawResults.filter(item => 
+              item && 
+              item.id && 
+              item.name && // Ensure name exists
+              item.external_urls?.spotify // Ensure Spotify link exists
+          );
+          console.log(`Filtered incomplete playlists: Kept ${rawResults.length} out of ${originalCount}`);
           break;
       }  
+      // Add resultType and assign to component property
+      this.searchResults = rawResults.map(item => ({
+        ...item,
+        resultType: apiSearchType, // Use the determined apiSearchType
+      }));
       console.log(`Found ${this.searchResults.length} results.`);
+      if (this.searchResults.length === 0) {
+        this.searchError = `No displayable results found for "${debouncedQuery}".`; // Set specific message
+      }
     } catch (err: any) {
       this.handleError(err, `Failed to search for ${apiSearchType}.`);
       this.searchError =
@@ -369,6 +405,10 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
     this.searchResults = [];     // Clear results array
     this.searchError = null;     // Clear any search error
     this.showSearchResults = false; // Hide the results area
+    this.clearActionFeedback();
+    // Ensure debounce triggers clearing if needed
+    this.searchQueryChanged.next(''); 
+    this.cdRef.detectChanges();
   }
 
   async addArtist(artist: SpotifyArtist): Promise<void> {
@@ -379,7 +419,16 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
           await this.spotifyService.followArtist(artist.id);
           this.addedItemIds.add(artist.id); // Mark as added
           this.showFeedback('success', `${artist.name} followed!`); 
-          this.loadArtists();
+          // --- START: Add to local lists (NO Resort) ---
+          if (!this.allFollowedArtists.some(a => a.id === artist.id)) {
+            // Add to the beginning of the main array
+            this.allFollowedArtists.unshift(artist); 
+            // If artists tab is active, add to beginning of filtered list too
+            if (this.activeTab === 'artists') {
+                this.filteredArtists.unshift(artist); 
+            }
+            console.log(`Artist ${artist.name} added locally.`);
+        }
       } catch (err: any) { this.handleError(err, `Failed to follow ${artist.name}.`); }
 
       finally { this.cdRef.detectChanges(); } // Update button state if needed
@@ -393,7 +442,19 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
           await this.spotifyService.saveAlbum(album.id);
           this.addedItemIds.add(album.id);
           this.showFeedback('success', `Album "${album.name}" saved!`);
-          this.loadAlbums();
+          // --- START: Add to local lists (NO Resort) ---
+          if (!this.allSavedAlbums.some(item => item.album.id === album.id)) {
+            const savedAlbumObject: SpotifySavedAlbumObject = {
+                added_at: new Date().toISOString(), // Use current time
+                album: album 
+            };
+            this.allSavedAlbums.unshift(savedAlbumObject);
+             if (this.activeTab === 'albums') {
+                this.filteredAlbums.unshift(savedAlbumObject);
+                // this.applyFilter(); 
+            }
+            console.log(`Album ${album.name} added locally.`);
+         }
       } catch (err: any) { this.handleError(err, `Failed to save album ${album.name}.`); }
       finally { this.cdRef.detectChanges(); }
   }
@@ -406,7 +467,15 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
           await this.spotifyService.followPlaylist(playlist.id);          
           this.addedItemIds.add(playlist.id);
           this.showFeedback('success', `Playlist "${playlist.name}" followed!`);           
-          this.loadPlaylists();        
+          // --- START: Add to local lists (NO Resort) ---
+          if (!this.allUserPlaylists.some(p => p.id === playlist.id)) {
+            this.allUserPlaylists.unshift(playlist);
+             if (this.activeTab === 'playlists') {
+                this.filteredPlaylists.unshift(playlist);
+                // this.applyFilter(); 
+            }
+            console.log(`Playlist ${playlist.name} added locally.`);
+         }       
       } catch (err: any) { this.handleError(err, `Failed to follow playlist ${playlist.name}.`); }
       finally { this.cdRef.detectChanges(); }
   }

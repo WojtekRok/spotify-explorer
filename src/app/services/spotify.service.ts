@@ -514,7 +514,6 @@ export class SpotifyService {
   }
 
   // --- Specific API Methods ---
-
   async getUserProfile(): Promise<any> {
     console.log("[Service DEBUG] Calling fetchWebApi for /me...");
     try {
@@ -583,7 +582,7 @@ export class SpotifyService {
         } catch (error) { console.error("Error during user playlist pagination:", error); throw error; }
     }
     return allPlaylists;
-}
+  }
 
   async getAllFollowedArtists(): Promise<any[]> {
     let allArtists: any[] = [];
@@ -667,26 +666,21 @@ export class SpotifyService {
   }
 
    // Search for tracks, artists, or albums
-  async search(query: string, type: string): Promise<any> {
+  async search(query: string, type: string, limit: number = 50): Promise<any> {
     if (!this.isBrowser || !this.token) {
       return { [type + 's']: { items: [] } };
     }
+    const safeLimit = Math.max(1, Math.min(50, limit));
     try {
-      const response = await fetch(`${this.apiUrl}/search?q=${query}&type=${type}`, {
-        headers: {
-          'Authorization': `Bearer ${this.token}`
-        }
+      // Use URLSearchParams for robustness
+      const params = new URLSearchParams({
+          q: query,
+          type: type,
+          limit: safeLimit.toString() // Pass the limit
       });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token expired, clear it
-          this.token = null;
-          localStorage.removeItem('spotify_token');
-        }
-        throw new Error(`Search failed with status: ${response.status}`);
-      }
-      return await response.json();
+      const endpoint = `/search?${params.toString()}`;
+      console.log(`Searching Spotify: ${this.apiUrl}${endpoint}`);
+      return await this.fetchWebApi<any>(endpoint); 
     } catch (error) {
       console.error(`Search failed: ${error}`);
       return { [type + 's']: { items: [] } };
@@ -694,11 +688,10 @@ export class SpotifyService {
   } 
 
    // --- Library Read Methods (with Pagination) ---
-
-   private async getSavedAlbumsPage(url: string): Promise<SpotifySavedAlbumResponse> {
+  private async getSavedAlbumsPage(url: string): Promise<SpotifySavedAlbumResponse> {
     return this.fetchWebApi<SpotifySavedAlbumResponse>(url);
-}
-async getAllSavedAlbums(): Promise<SpotifySavedAlbumObject[]> {
+  }
+  async getAllSavedAlbums(): Promise<SpotifySavedAlbumObject[]> {
     let allItems: SpotifySavedAlbumObject[] = [];
     let nextUrl: string | null = `${this.apiUrl}/me/albums?limit=50&offset=0`;
     console.log("Fetching ALL saved albums (pagination)...");
@@ -712,67 +705,67 @@ async getAllSavedAlbums(): Promise<SpotifySavedAlbumObject[]> {
     }
     console.log(`Finished fetching. Total saved album items: ${allItems.length}`);
     return allItems;
-}
+  }
 
-// --- Library Modify Methods ---
+  // --- Library Modify Methods ---
 
-/**
- * Unfollows one or more artists.
- * Requires scope: user-follow-modify
- */
-async unfollowArtist(artistId: string): Promise<void> {
-    // Note: API takes comma-separated list, but let's do one at a time for simplicity
-    await this.fetchWebApi(`/me/following?type=artist&ids=${artistId}`, 'DELETE');
-    console.log(`Unfollowed artist: ${artistId}`);
-}
+  /**
+   * Unfollows one or more artists.
+   * Requires scope: user-follow-modify
+   */
+  async unfollowArtist(artistId: string): Promise<void> {
+      // Note: API takes comma-separated list, but let's do one at a time for simplicity
+      await this.fetchWebApi(`/me/following?type=artist&ids=${artistId}`, 'DELETE');
+      console.log(`Unfollowed artist: ${artistId}`);
+  }
 
-/**
- * Removes one or more albums from the user's library.
- * Requires scope: user-library-modify
- */
-async unsaveAlbum(albumId: string): Promise<void> {
-    await this.fetchWebApi(`/me/albums?ids=${albumId}`, 'DELETE');
-    console.log(`Unsaved album: ${albumId}`);
-}
+  /**
+   * Removes one or more albums from the user's library.
+   * Requires scope: user-library-modify
+   */
+  async unsaveAlbum(albumId: string): Promise<void> {
+      await this.fetchWebApi(`/me/albums?ids=${albumId}`, 'DELETE');
+      console.log(`Unsaved album: ${albumId}`);
+  }
 
-/**
- * Unfollows a playlist (removes from library).
- * Requires scope: playlist-modify-public or playlist-modify-private
- */
-async unfollowPlaylist(playlistId: string): Promise<void> {
-    // This is the endpoint to make the current user unfollow
-    await this.fetchWebApi(`/playlists/${playlistId}/followers`, 'DELETE');
-     console.log(`Unfollowed playlist: ${playlistId}`);
-     // Note: This doesn't delete playlists the user owns.
-}
+  /**
+   * Unfollows a playlist (removes from library).
+   * Requires scope: playlist-modify-public or playlist-modify-private
+   */
+  async unfollowPlaylist(playlistId: string): Promise<void> {
+      // This is the endpoint to make the current user unfollow
+      await this.fetchWebApi(`/playlists/${playlistId}/followers`, 'DELETE');
+      console.log(`Unfollowed playlist: ${playlistId}`);
+      // Note: This doesn't delete playlists the user owns.
+  }
 
- /**
- * Follows one or more artists.
- * Requires scope: user-follow-modify
- */
-async followArtist(artistId: string): Promise<void> {
-    await this.fetchWebApi(`/me/following?type=artist&ids=${artistId}`, 'PUT');
-    console.log(`Followed artist: ${artistId}`);
-}
+  /**
+   * Follows one or more artists.
+   * Requires scope: user-follow-modify
+   */
+  async followArtist(artistId: string): Promise<void> {
+      await this.fetchWebApi(`/me/following?type=artist&ids=${artistId}`, 'PUT');
+      console.log(`Followed artist: ${artistId}`);
+  }
 
-/**
- * Saves one or more albums to the user's library.
- * Requires scope: user-library-modify
- */
-async saveAlbum(albumId: string): Promise<void> {
-    await this.fetchWebApi(`/me/albums?ids=${albumId}`, 'PUT');
-    console.log(`Saved album: ${albumId}`);
-}
+  /**
+   * Saves one or more albums to the user's library.
+   * Requires scope: user-library-modify
+   */
+  async saveAlbum(albumId: string): Promise<void> {
+      await this.fetchWebApi(`/me/albums?ids=${albumId}`, 'PUT');
+      console.log(`Saved album: ${albumId}`);
+  }
 
- /**
- * Follows (saves) a playlist.
- * Requires scope: playlist-modify-public or playlist-modify-private
- * @param makePublic Whether to make the followed playlist public on the user's profile (default true)
- */
- async followPlaylist(playlistId: string, makePublic: boolean = true): Promise<void> {
-      // Note: Body determines if it's publicly visible on user profile
-     await this.fetchWebApi(`/playlists/${playlistId}/followers`, 'PUT', { public: makePublic });
-     console.log(`Followed playlist: ${playlistId}`);
- }
+  /**
+   * Follows (saves) a playlist.
+   * Requires scope: playlist-modify-public or playlist-modify-private
+   * @param makePublic Whether to make the followed playlist public on the user's profile (default true)
+   */
+  async followPlaylist(playlistId: string, makePublic: boolean = true): Promise<void> {
+        // Note: Body determines if it's publicly visible on user profile
+      await this.fetchWebApi(`/playlists/${playlistId}/followers`, 'PUT', { public: makePublic });
+      console.log(`Followed playlist: ${playlistId}`);
+  }
 
 }
