@@ -1,0 +1,34 @@
+// Spotify button styled to match the search component but 20% smaller
+.spotify-btn {
+    display: inline-block;
+    padding: 4px 10px;  // Reduced padding
+    border: 1px solid #1db954;
+    color: #1db954;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 0.75rem;  // Smaller font size
+    line-height: 1.4;
+    white-space: nowrap;
+    min-width: 108px;  // 20% smaller than 135px
+    
+    &:hover {
+      color: white;
+      background-color: #1db954;
+    }
+    
+    // Remove default Bootstrap button styles
+    &:focus, &:active {
+      box-shadow: none;
+    }
+  }
+  
+  // Optional: style improvements for the layout
+  .list-group-numbered > li::before {
+    font-weight: 600;
+    color: #6c757d;
+  }
+  
+  // Optional: hover effect for list items
+  .list-group-item:hover {
+    background-color: rgba(29, 185, 84, 0.05);
+  }

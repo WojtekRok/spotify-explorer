@@ -44,7 +44,7 @@ export class NewReleasesComponent implements OnInit {
 
     try {
       // Call the simplified Spotify service method
-      const data = await this.spotifyService.getNewReleases(50); // Fetch 50 items
+      const data = await this.spotifyService.getNewReleases(50);
 
       if (data && data.albums && data.albums.items) {
         this.allNewReleases = data.albums.items;

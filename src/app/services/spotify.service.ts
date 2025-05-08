@@ -39,8 +39,9 @@ export interface SpotifyTrack {
 
 export interface GeneratedTrackInfo {
   track: SpotifyTrack;
-  sourceType: 'playlist' | 'followedArtist' | 'topArtistSeed'; // Type of source
+  sourceType: 'playlist' | 'followedArtistAlbum' | 'followedArtistTopTrack' | 'topArtistSeed'; // Type of source
   sourceName: string; // Name of the playlist or artist
+  sourceAlbumName?: string;
 }
 
 // Structure for the items returned by /playlists/{id}/tracks
@@ -104,9 +105,10 @@ export interface SpotifyAlbumSimple {
   name: string;
   uri?: string;
   release_date?: string;
-  images?: SpotifyImage[];             // Uses defined interface
-  external_urls?: SpotifyExternalUrls; // Uses defined interface
-  artists: SpotifyArtist[];            // Uses defined interface
+  images?: SpotifyImage[];             
+  external_urls?: SpotifyExternalUrls; 
+  artists: SpotifyArtist[];
+  album_type?: string;            
 }
 
 export interface SpotifyAlbum { 
@@ -142,9 +144,37 @@ export interface SpotifyOwner {
   external_urls?: SpotifyExternalUrls;
 }
 
+export interface SpotifyArtistAlbum {
+  id: string; 
+  name: string; 
+  album_group: 'album' | 'single' | 'compilation' | 'appears_on';
+  album_type: 'album' | 'single' | 'compilation'; 
+  release_date?: string; 
+  release_date_precision?: string;
+  total_tracks?: number; 
+  images?: SpotifyImage[]; 
+  uri?: string; 
+  artists: SpotifyArtist[]; // Simplified artist here? Check API
+}
+// Interfaces specifically for album's tracks endpoint
+export interface SpotifyAlbumTrack { // Often simpler than full track
+  id: string; 
+  name: string; 
+  uri: string; 
+  artists: SpotifyArtist[]; // Check actual artist structure here
+  disc_number?: number; 
+  duration_ms?: number; 
+  explicit?: boolean;
+  preview_url?: string | null; 
+  track_number?: number; 
+  is_local?: boolean;
+}
+
 export type SpotifyUserPlaylistsResponse = SpotifyPagingObject<SpotifyPlaylist>; // Export type alias
 export type SpotifyPlaylistTracksResponse = SpotifyPagingObject<SpotifyPlaylistTrackObject>; // Export type alias
 export type SpotifySavedAlbumResponse = SpotifyPagingObject<SpotifySavedAlbumObject>;
+export type SpotifyArtistAlbumsResponse = SpotifyPagingObject<SpotifyArtistAlbum>;
+export type SpotifyAlbumTracksResponse = SpotifyPagingObject<SpotifyAlbumTrack>;
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -161,6 +191,7 @@ export class SpotifyService {
   public token: string | null = null;         
   private codeVerifier: string | null = null;
   public isBrowser: boolean;
+  
 
   constructor(@Inject(PLATFORM_ID) platformId: Object) {
     this.isBrowser = isPlatformBrowser(platformId);
@@ -196,16 +227,13 @@ export class SpotifyService {
         return;
     }
     console.log("[Authorize] Starting authorization flow...");
-
     // 1. Save return path
     const currentPath = returnPath || window.location.pathname;
-    localStorage.setItem('spotify_auth_return_path', currentPath);    
-
+    localStorage.setItem('spotify_auth_return_path', currentPath); 
     // 2. Generate and store code verifier
     this.codeVerifier = this.generateRandomString(64);
     localStorage.setItem('spotify_code_verifier', this.codeVerifier);
-    console.log(`[Authorize] Generated codeVerifier: ${this.codeVerifier}`);   
-
+    console.log(`[Authorize] Generated codeVerifier: ${this.codeVerifier}`);
     // 3. Generate code challenge
     let codeChallenge: string;
     try {
@@ -215,13 +243,11 @@ export class SpotifyService {
          console.error("[Authorize] Failed to generate code challenge:", error);       
          return; 
     }
-
     // 4. Generate state
     const state = this.generateRandomString(16);
     localStorage.setItem('spotify_auth_state', state);
     console.log(`[Authorize] Generated state: ${state}`);
     console.log(`[Authorize] Saved state: ${localStorage.getItem('spotify_auth_state')}`); // Verify save
-
     // 5. Define scopes
     const scopes = [
       'user-read-private', 'user-read-email', 'user-top-read',
@@ -233,7 +259,6 @@ export class SpotifyService {
       'user-follow-modify'     // To follow/unfollow artists
     ];
     const scopeString = scopes.join(' ');
-
     // 6. Construct authorization URL parameters
     // Ensure clientId and redirectUri are correctly loaded from environment
     if (!this.clientId || !this.redirectUri) {
@@ -249,7 +274,6 @@ export class SpotifyService {
       state: state,                          
       scope: scopeString                     
     });
-
     // 7. Redirect user
     const authUrl = `${this.authorizationUrl}?${params.toString()}`;
     console.log(`[Authorize] PRE-REDIRECT CHECK: Verifier in storage: ${localStorage.getItem('spotify_code_verifier')}`);
@@ -264,29 +288,25 @@ export class SpotifyService {
       if (!this.isBrowser) {
         console.warn('[HandleCallback] Skipping: Not in browser environment.');
         return false; // Cannot handle callback outside browser
-      }
-  
+      }  
       // 1. Get params from URL
       console.log(`[HandleCallback] Current URL: ${window.location.href}`);
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       const state = urlParams.get('state');
       const error = urlParams.get('error'); // Check for errors returned by Spotify
-      console.log(`[HandleCallback] URL Params: code=${code}, state=${state}, error=${error}`);
-  
+      console.log(`[HandleCallback] URL Params: code=${code}, state=${state}, error=${error}`);  
       // 2. Check for errors from Spotify
       if (error) {
           console.error(`[HandleCallback] Error returned from Spotify: ${error}`);
           localStorage.removeItem('spotify_auth_state'); // Clean up state if possible
           localStorage.removeItem('spotify_code_verifier');
           return false;
-      }
-  
+      }  
       // 3. Retrieve stored state and verifier IMMEDIATELY
       const storedState = localStorage.getItem('spotify_auth_state');
       const codeVerifier = localStorage.getItem('spotify_code_verifier');
-      console.log(`[HandleCallback] Retrieved from localStorage: storedState=${storedState}, codeVerifier=${codeVerifier}`);
-  
+      console.log(`[HandleCallback] Retrieved from localStorage: storedState=${storedState}, codeVerifier=${codeVerifier}`);  
       // 4. Validate state and presence of code/verifier
       if (!code || !state || !storedState || !codeVerifier) {        
          localStorage.removeItem('spotify_auth_state'); 
@@ -299,8 +319,7 @@ export class SpotifyService {
          localStorage.removeItem('spotify_code_verifier');
         return false;
       }
-      console.log("[HandleCallback] State matched and required params present.");
-  
+      console.log("[HandleCallback] State matched and required params present.");  
       // 5. Exchange authorization code for tokens
       try {
         console.log("[HandleCallback] Attempting token exchange with codeVerifier:", codeVerifier); // Log verifier being sent
@@ -316,8 +335,7 @@ export class SpotifyService {
             redirect_uri: this.redirectUri, 
             code_verifier: codeVerifier     // Pass the retrieved verifier
           }).toString() 
-        });
-  
+        });  
         // 6. Check response status
         const responseBodyText = await tokenResponse.text(); // Read body once for logging/parsing
         if (!tokenResponse.ok) {
@@ -326,9 +344,7 @@ export class SpotifyService {
            localStorage.removeItem('spotify_code_verifier');
           return false;
         }
-        console.log("[HandleCallback] Token exchange response received:", responseBodyText);
-  
-  
+        console.log("[HandleCallback] Token exchange response received:", responseBodyText);  
         // 7. Parse response and store tokens
         const tokenData = JSON.parse(responseBodyText); // Parse the text body
         if (tokenData && tokenData.access_token) {
@@ -344,8 +360,7 @@ export class SpotifyService {
           } else {
                localStorage.removeItem('spotify_refresh_token'); 
                console.warn("[HandleCallback] No refresh token received.");
-          }
-  
+          }  
           // 8. Clean up temporary localStorage items ONLY on success
           console.log("[HandleCallback] Cleaning up auth state and verifier.");
           localStorage.removeItem('spotify_auth_state');
@@ -359,8 +374,7 @@ export class SpotifyService {
           localStorage.removeItem('spotify_auth_state');
           localStorage.removeItem('spotify_code_verifier');
           return false;
-        }
-  
+        }  
       } catch (error) {
         console.error('[HandleCallback] Error during token exchange fetch/parse:', error);
          localStorage.removeItem('spotify_auth_state'); 
@@ -368,6 +382,7 @@ export class SpotifyService {
         return false;
       }
     }
+
   private isTokenExpired(): boolean {
     if (!this.isBrowser) return true;
     const exp = parseInt(localStorage.getItem('spotify_token_expires') ?? '0', 10);
@@ -427,9 +442,7 @@ export class SpotifyService {
     this.token = null;
     localStorage.removeItem('spotify_token');
     localStorage.removeItem('spotify_refresh_token');
-    localStorage.removeItem('spotify_token_expires');
-    // Optional: Clear other app state
-    // Navigate home after logout completes
+    localStorage.removeItem('spotify_token_expires');    
     if (window.location.pathname !== '/') {
        window.location.href = '/'; 
     } else {
@@ -437,82 +450,48 @@ export class SpotifyService {
     }
     console.log("User logged out.");
   }
-
-  // --- Generic API Call Helper ---
-  private async fetchWebApi<T = any>(endpoint: string, method: string = 'GET', body?: any, retries: number = 3): Promise<T> {
-      // 1. Ensure token is valid *before* checking login status for potentially refreshing
-      //    (Only call ensureValidToken if we expect to need a token)
-      if (!endpoint.includes(this.tokenUrl)) { // Don't try to refresh when getting the token itself
-        await this.ensureValidToken();
-      }
-      
-      // 2. Check login status *after* attempting refresh
-      if (!this.isLoggedIn() && !endpoint.includes(this.tokenUrl)) { 
-          console.error(`fetchWebApi: User not logged in or token invalid for endpoint ${endpoint}.`);
-          throw new Error('User not logged in or session expired.'); 
-      }
-
-      const url = endpoint.startsWith('http') ? endpoint : `${this.apiUrl}${endpoint}`;
-
-      try {
-          const res = await fetch(url, {
-              method: method,
-              headers: {
-                  // Token might be null here if called during refresh itself, handle cautiously
-                  'Authorization': `Bearer ${this.token}`, 
-                  ...(method !== 'GET' && body ? { 'Content-Type': 'application/json' } : {})
-              },
-              body: body ? JSON.stringify(body) : undefined
-          });
-
-          if (!res.ok) {
-              // Try to get error message from Spotify
-              let errorMsg = `API request failed: ${res.status}`;
-              let spotifyError = null;
-              try {
-                 spotifyError = await res.json();
-                 errorMsg += ` - ${spotifyError?.error?.message || 'Unknown Spotify Error'}`;
-              } catch (e) { /* Ignore if response body is not JSON */ }
-
-               // Handle specific status codes
-               if (res.status === 401 && !url.includes(this.tokenUrl)) { // If unauthorized (and not a token request itself)
-                  console.error(`API call failed (${res.status}), likely token expired. Logging out.`);
-                  this.logout(); // Log out if token invalid after ensureValidToken attempt
-                  throw new Error(`Authorization invalid (401). Please log in again.`);
-               }
-               if (res.status === 403) { // Forbidden, likely missing scope
-                   throw new Error(`Permission Denied (403): ${spotifyError?.error?.message || 'Check required scopes.'}`);
-               }
-               if (res.status === 429 && retries > 0) {
-                const retryAfterHeader = res.headers.get('Retry-After'); // Seconds
-                const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 2; // Default 2s
-                console.warn(`Rate limited (429). Retrying after ${retryAfterSec} seconds... (${retries} retries left)`);
-                await delay(retryAfterSec * 1000); // Wait
-                return this.fetchWebApi<T>(endpoint, method, body, retries - 1); // Retry
-               }
-               // For other errors (like 404, 500, etc.)
-               throw new Error(errorMsg);
-          }
-
-          const contentLength = res.headers.get('content-length');
-          if (res.status === 204 || (res.ok && contentLength !== null && parseInt(contentLength, 10) === 0)) {
-            console.log(`fetchWebApi: Received status ${res.status} with empty body for ${method} ${endpoint}. Returning null.`);
-            return null as T; // Return null for empty responses
-        }
-        try {
-          return await res.json() as T;
-        } catch (e) {
-          console.error(`fetchWebApi: Failed to parse JSON response for ${method} ${endpoint}`, e);
-          throw new Error(`Failed to parse API response as JSON.`); // Throw specific JSON parse error
-        }
-
-    } catch (error) {
-        console.error(`Error during fetchWebApi call to ${endpoint}:`, error);
-        throw error; 
+  
+  private async fetchWebApi<T = any>(endpoint: string, method: string = 'GET', body?: any, retries: number = 3): Promise<T> {    
+    await this.ensureValidToken();
+    if (!this.isLoggedIn() && !endpoint.includes(this.tokenUrl)) {
+      throw new Error('User not logged in.');
     }
-      
+    const url = endpoint.startsWith('http') ? endpoint : `${this.apiUrl}${endpoint}`;
+    try {
+      const res = await fetch(url, { method, headers: { 'Authorization': `Bearer ${this.token}`, ...(method !== 'GET' && body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+      if (!res.ok) { 
+        if (res.status === 429 && retries > 0) { 
+          const retryAfterSec = parseInt(res.headers.get('Retry-After') || '2', 10); 
+          console.warn(`Rate limited (429). Retrying after ${retryAfterSec}s...`); 
+          await delay(retryAfterSec * 1000); 
+          return this.fetchWebApi<T>(endpoint, method, body, retries - 1); 
+        } 
+        let errorMsg = `API request failed: ${res.status}`; 
+        try { 
+          const errBody = await res.json(); 
+          errorMsg += ` - ${errBody?.error?.message || 'Unknown'}`; 
+        } catch (e) { } 
+        if (res.status === 401 && !url.includes(this.tokenUrl)) { 
+          this.logout(); throw new Error(`Authorization invalid (401).`); 
+        } 
+        if (res.status === 403) { 
+          throw new Error(`Permission Denied (403).`); 
+        } 
+        throw new Error(errorMsg); 
+      }
+      const contentLength = res.headers.get('content-length'); 
+      if (res.status === 204 || (contentLength !== null && parseInt(contentLength, 10) === 0)) {
+        return null as T; 
+      }
+      try { 
+        return await res.json() as T; 
+      } catch (e) { 
+        throw new Error(`Failed to parse API response as JSON.`); 
+      }
+    } catch (error) { 
+      console.error(`Error during fetchWebApi call to ${endpoint}:`, error); throw error; 
+    }
   }
-
   // --- Specific API Methods ---
   async getUserProfile(): Promise<any> {
     console.log("[Service DEBUG] Calling fetchWebApi for /me...");
@@ -558,80 +537,8 @@ export class SpotifyService {
       const safeLimit = Math.max(1, Math.min(50, limit));
       return this.fetchWebApi(`/browse/new-releases?limit=${safeLimit}`);
   }
-
   
-  // --- Methods for User Playlists ---
-  /**
-   * Fetches the current user's playlists.
-   * @param limit Max items per page (1-50)
-   * @param offset Starting index
-   * @returns Promise<any> Playlist paging object { items: [...], next: '...', ... }
-   */
-  private async getUserPlaylistsPage(url: string): Promise<SpotifyUserPlaylistsResponse> {
-    return this.fetchWebApi(url);
-  } 
-  async getAllUserPlaylists(): Promise<SpotifyPlaylist[]> { // Returns array of Playlists
-    let allPlaylists: SpotifyPlaylist[] = [];
-    let nextUrl: string | null = `${this.apiUrl}/me/playlists?limit=50&offset=0`;
-    while(nextUrl) {
-        try {
-           const data = await this.getUserPlaylistsPage(nextUrl);
-           allPlaylists = allPlaylists.concat(data?.items || []);
-           nextUrl = data?.next;
-           if (nextUrl) await delay(100);
-        } catch (error) { console.error("Error during user playlist pagination:", error); throw error; }
-    }
-    return allPlaylists;
-  }
-
-  async getAllFollowedArtists(): Promise<any[]> {
-    let allArtists: any[] = [];
-    let nextUrl: string | null = `${this.apiUrl}/me/following?type=artist&limit=50`; // Start with first page URL
-
-    console.log("Fetching ALL followed artists (pagination)...");
-    while (nextUrl) {
-        try {
-            // Need to use fetch directly or adapt fetchWebApi to handle full URLs and the specific response structure
-            if (!this.isLoggedIn()) throw new Error("User not logged in during pagination.");
-            await this.ensureValidToken(); // Ensure token fresh for each page
-
-            console.log(`Fetching followed artists page: ${nextUrl}`);
-            const response = await fetch(nextUrl, { headers: { 'Authorization': `Bearer ${this.token}` } });
-
-            if (!response.ok) {
-                // Handle rate limiting within pagination loop
-                if (response.status === 429) {
-                    const retryAfterHeader = response.headers.get('Retry-After');
-                    const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 2;
-                    console.warn(`Rate limited fetching followed artists. Retrying after ${retryAfterSec}s...`);
-                    await delay(retryAfterSec * 1000);
-                    continue; // Retry the same URL
-                }
-                throw new Error(`Failed to fetch followed artists page: ${response.status}`);
-            }
-            
-            const data: SpotifyFollowingResponse = await response.json();
-            const artists = data?.artists?.items || [];
-            allArtists = allArtists.concat(artists);
-            
-            // Get the *next* URL from the response for the next iteration
-            nextUrl = data?.artists?.next; 
-            if (nextUrl) await delay(100); // Small delay between page requests
-
-        } catch (error) {
-            console.error("Error during followed artists pagination:", error);
-            // Decide whether to stop or continue (might return partial list)
-            nextUrl = null; // Stop pagination on error
-            throw error; // Or rethrow error
-        }
-    }
-    console.log(`[Service DEBUG] Returning ${allArtists.length} followed artists from service.`);
-    // Log the first few artist names to be sure
-    console.log('[Service DEBUG] Sample:', JSON.stringify(allArtists.slice(0, 3).map(a => a.name))); 
-    return allArtists;
-  }
-  
-   // getPlaylistTracks with Pagination
+  // getPlaylistTracks with Pagination
   async getAllPlaylistTracks(playlistId: string, market: string = 'from_token'): Promise<SpotifyTrack[]> {
     let allTrackItems: SpotifyPlaylistTrackObject[] = []; // Store the item which contains { track: ... }
     let nextUrl: string | null = `${this.apiUrl}/playlists/${playlistId}/tracks?market=${market}&limit=100&offset=0`; // Max limit is 100
@@ -685,12 +592,100 @@ export class SpotifyService {
       console.error(`Search failed: ${error}`);
       return { [type + 's']: { items: [] } };
     }
-  } 
+  }
+
+  // --- PAGINATED LIBRARY METHODS ---
+  async getAllFollowedArtists(): Promise<SpotifyArtist[]> {
+    let allItems: SpotifyArtist[] = [];
+    let url: string | null = `${this.apiUrl}/me/following?type=artist&limit=50`; // Start URL
+    console.log("Fetching ALL followed artists (pagination)...");
+    while (url) {
+        try {
+            // Need specific type for this endpoint's paging object
+            const data: SpotifyFollowingResponse = await this.fetchWebApi<SpotifyFollowingResponse>(url); 
+            allItems = allItems.concat(data?.artists?.items || []);
+            url = data?.artists?.next; // Get the next URL
+            if (url) await delay(100); // Be nice to the API
+        } catch (error) { console.error("Error during followed artists pagination:", error); url = null; throw error; } // Stop on error
+    }
+    console.log(`Finished fetching followed artists. Total: ${allItems.length}`);
+    return allItems;
+  }
+
+  async getAllUserPlaylists(): Promise<SpotifyPlaylist[]> {
+    let allItems: SpotifyPlaylist[] = [];
+    let url: string | null = `${this.apiUrl}/me/playlists?limit=50&offset=0`;
+    console.log("Fetching ALL user playlists (pagination)...");
+    while(url) {
+        try {
+           const data: SpotifyUserPlaylistsResponse = await this.fetchWebApi<SpotifyUserPlaylistsResponse>(url); 
+           allItems = allItems.concat(data?.items || []);
+           url = data?.next; 
+           if (url) await delay(100);
+        } catch (error) { console.error("Error during user playlist pagination:", error); url = null; throw error; }
+    }
+    console.log(`Finished fetching playlists. Total: ${allItems.length}`);
+    return allItems;
+  }
+
+   // Gets all albums/singles for ONE artist (paginated)
+  async getAllArtistAlbums(artistId: string, includeGroups: string = 'album,single', market: string = 'from_token'): Promise<SpotifyArtistAlbum[]> {
+    let allItems: SpotifyArtistAlbum[] = [];
+    let url: string | null = `${this.apiUrl}/artists/${artistId}/albums?include_groups=${includeGroups}&market=${market}&limit=50&offset=0`;
+    console.log(`Fetching ALL albums/singles for artist ${artistId} (pagination)...`);
+     while(url) {
+       try {
+          const data: SpotifyArtistAlbumsResponse = await this.fetchWebApi<SpotifyArtistAlbumsResponse>(url); // Use specific paging type
+          allItems = allItems.concat(data?.items || []);
+          url = data?.next; 
+          if (url) await delay(100);
+       } catch (error) { console.error(`Error during artist album pagination for ${artistId}:`, error); url = null; throw error; }
+   }
+    console.log(`Finished fetching albums/singles for artist ${artistId}. Total: ${allItems.length}`);
+   return allItems;
+  }
+
+  // Gets all tracks for ONE album (paginated)
+  async getAllAlbumTracks(albumId: string, market: string = 'from_token'): Promise<SpotifyAlbumTrack[]> {
+   let allItems: SpotifyAlbumTrack[] = [];
+   let url: string | null = `${this.apiUrl}/albums/${albumId}/tracks?market=${market}&limit=50&offset=0`; // Album tracks limit is 50
+   console.log(`Fetching ALL tracks for album ${albumId} (pagination)...`);
+   while(url) {
+       try {
+          console.log(`Fetching album tracks page: ${url}`);
+           const data: SpotifyAlbumTracksResponse = await this.fetchWebApi<SpotifyAlbumTracksResponse>(url); // Use specific paging type
+           allItems = allItems.concat(data?.items || []);
+           url = data?.next; 
+           if (url) await delay(100);
+       } catch (error) { console.error(`Error during album track pagination for ${albumId}:`, error); url = null; throw error; }
+   }
+    console.log(`Finished fetching tracks for album ${albumId}. Total: ${allItems.length}`);
+   return allItems;
+  }
+
+  // Gets all tracks for ONE playlist (paginated) - Renamed from previous version
+  async getAllPlaylistTrackObjects(playlistId: string, market: string = 'from_token'): Promise<SpotifyPlaylistTrackObject[]> {
+   let allItems: SpotifyPlaylistTrackObject[] = [];
+   let url: string | null = `${this.apiUrl}/playlists/${playlistId}/tracks?market=${market}&limit=100&offset=0`; // Playlist tracks limit 100
+   console.log(`Fetching ALL track items for playlist ${playlistId} (pagination)...`);
+   while(url) {
+       try {
+           const data: SpotifyPlaylistTracksResponse   = await this.fetchWebApi<SpotifyPlaylistTracksResponse>(url); // Use specific paging type
+           allItems = allItems.concat(data?.items || []);
+           url = data?.next;
+           if (url) await delay(100);
+       } catch (error) { console.error(`Error during playlist track pagination for ${playlistId}:`, error); url = null; throw error; }
+   }
+   console.log(`Finished fetching track items for playlist ${playlistId}. Total: ${allItems.length}`);
+   // Return the items containing { track: ... }
+   return allItems;
+  }
 
    // --- Library Read Methods (with Pagination) ---
   private async getSavedAlbumsPage(url: string): Promise<SpotifySavedAlbumResponse> {
     return this.fetchWebApi<SpotifySavedAlbumResponse>(url);
   }
+  
   async getAllSavedAlbums(): Promise<SpotifySavedAlbumObject[]> {
     let allItems: SpotifySavedAlbumObject[] = [];
     let nextUrl: string | null = `${this.apiUrl}/me/albums?limit=50&offset=0`;
@@ -766,6 +761,5 @@ export class SpotifyService {
         // Note: Body determines if it's publicly visible on user profile
       await this.fetchWebApi(`/playlists/${playlistId}/followers`, 'PUT', { public: makePublic });
       console.log(`Followed playlist: ${playlistId}`);
-  }
-
+  }   
 }

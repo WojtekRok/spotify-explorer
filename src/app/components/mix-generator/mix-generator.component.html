@@ -38,29 +38,29 @@
             <button type="button" class="btn" 
                     [ngClass]="selectedSourceMode === 'followedOnly' ? 'btn-primary' : 'btn-outline-primary'" 
                     (click)="selectedSourceMode = 'followedOnly'" 
-                    [disabled]="followedArtists.length === 0"
-                    title="{{ followedArtists.length === 0 ? 'Requires followed artists' : 'Only use tracks from artists you follow' }}">
+                    [disabled]="fullFollowedArtists.length === 0"
+                    title="{{ fullFollowedArtists.length === 0 ? 'Requires followed artists' : 'Only use tracks from artists you follow' }}">
               Followed Only
             </button>
             <button type="button" class="btn" 
                     [ngClass]="selectedSourceMode === 'mix' ? 'btn-primary' : 'btn-outline-primary'" 
                     (click)="selectedSourceMode = 'mix'"
-                    [disabled]="followedArtists.length === 0 || userPlaylists.length === 0"
-                     title="{{ (followedArtists.length === 0 || userPlaylists.length === 0) ? 'Requires followed artists AND playlists' : 'Mix followed artists & your playlists' }}">
+                    [disabled]="fullFollowedArtists.length === 0 || fullUserPlaylists.length === 0"
+                     title="{{ (fullFollowedArtists.length === 0 || fullUserPlaylists.length === 0) ? 'Requires followed artists AND playlists' : 'Mix followed artists & your playlists' }}">
               Mix (Followed + Playlists)
             </button>
             <button type="button" class="btn" 
                     [ngClass]="selectedSourceMode === 'playlistsOnly' ? 'btn-primary' : 'btn-outline-primary'" 
                     (click)="selectedSourceMode = 'playlistsOnly'"
-                     [disabled]="userPlaylists.length === 0"
-                     title="{{ userPlaylists.length === 0 ? 'Requires saved playlists' : 'Only use tracks from your playlists' }}">
+                     [disabled]="fullUserPlaylists.length === 0"
+                     title="{{ fullUserPlaylists.length === 0 ? 'Requires saved playlists' : 'Only use tracks from your playlists' }}">
               Playlists Only
             </button>
           </div>
-           <div *ngIf="!loadingFollowed && followedArtists.length === 0 && (selectedSourceMode === 'followedOnly' || selectedSourceMode === 'mix')" class="text-danger small mt-1">
+           <div *ngIf="!loadingFollowed && fullFollowedArtists.length === 0 && (selectedSourceMode === 'followedOnly' || selectedSourceMode === 'mix')" class="text-danger small mt-1">
                Cannot use 'Followed Only' or 'Mix' mode without followed artists.
            </div>
-            <div *ngIf="!loadingPlaylists && userPlaylists.length === 0 && (selectedSourceMode === 'playlistsOnly' || selectedSourceMode === 'mix')" class="text-danger small mt-1">
+            <div *ngIf="!loadingPlaylists && fullUserPlaylists.length === 0 && (selectedSourceMode === 'playlistsOnly' || selectedSourceMode === 'mix')" class="text-danger small mt-1">
                Cannot use 'Playlists Only' or 'Mix' mode without saved playlists.
            </div>
         </div>        
@@ -81,7 +81,7 @@
       <!-- == Results Section == -->
       <div *ngIf="generatingMix || generatedTracks.length > 0" class="results-section mt-4">
         <!-- == Loading Indicator == -->
-        <div *ngIf="generatingMix" class="text-center my-5 p-4 border rounded bg-white shadow-sm">          
+        <!-- <div *ngIf="generatingMix" class="text-center my-5 p-4 border rounded bg-white shadow-sm">          
           <img src="assets/cooking-icon.png" alt="Cooking..." class="loading-image mb-3">
           <div class="cooking-animation mb-3">
             <span class="dot"></span>
@@ -89,7 +89,8 @@
             <span class="dot"></span>
           </div>
         </div>
-         <h4 class="mb-3">Generated Mix ({{ generatedTracks.length }} Tracks)</h4>
+         <h4 class="mb-3">Generated Mix ({{ generatedTracks.length }} Tracks)</h4> -->
+         <app-mix-generator-loader *ngIf="generatingMix" [sourceMode]="selectedSourceMode"></app-mix-generator-loader>
          
          <!-- Result List -->
          <ul *ngIf="!generatingMix && generatedTracks.length > 0" class="list-group mb-3">
@@ -109,7 +110,9 @@
                       <!-- Display Source Info -->
                       <div class="text-muted fst-italic source-info" style="font-size: 0.8em;">
                         <span *ngIf="item.sourceType === 'playlist'">from playlist: "{{ item.sourceName }}"</span>
-                        <span *ngIf="item.sourceType === 'followedArtist'">from followed: {{ item.sourceName }}</span>
+                        <span *ngIf="item.sourceType === 'followedArtistAlbum' || item.sourceType === 'followedArtistTopTrack'">from followed artist: {{ item.sourceName }}</span>
+                        <span *ngIf="item.sourceType === 'followedArtistAlbum' && item.sourceAlbumName">(album: "{{ item.sourceAlbumName }}")
+                     </span>
                         <!-- Add more types if needed -->
                       </div>
                    </div>

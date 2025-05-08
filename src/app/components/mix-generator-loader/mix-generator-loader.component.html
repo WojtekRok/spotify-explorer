@@ -1,0 +1,35 @@
+<div class="cooking-container text-center my-5 p-4 border rounded bg-white shadow-sm">
+    <!-- Cooking Images with Bumping Animation -->
+    <div class="cooking-images-container mb-4 position-relative">
+      <!-- Current Image -->
+      <div class="cooking-image current-image" 
+           [class.transitioning]="isTransitioning"
+           [class.pulsating]="isPulsating"
+           [attr.data-intensity]="pulsationIntensity">
+        <img [src]="currentImagePath" alt="Cooking animation" class="img-fluid mx-auto">
+      </div>
+      
+      <!-- Previous Image (for transition) -->
+      <div *ngIf="isTransitioning" class="cooking-image previous-image">
+        <img [src]="previousImagePath" alt="Previous cooking step" class="img-fluid mx-auto">
+      </div>
+    </div>
+    
+    <!-- Progress Bar -->
+    <div class="progress mb-2" style="height: 10px">
+      <div 
+        class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+        role="progressbar" 
+        [style.width.%]="progress" 
+        [attr.aria-valuenow]="progress" 
+        aria-valuemin="0" 
+        aria-valuemax="100"
+      ></div>
+    </div>
+    <div class="text-muted small">{{ progress }}% complete</div>
+    
+    <!-- Fun fact about music that changes -->
+    <div *ngIf="showFact" class="music-fact mt-4 p-2 border-top">
+      <p class="mb-0 fst-italic">{{ currentFact }}</p>
+    </div>
+  </div>
