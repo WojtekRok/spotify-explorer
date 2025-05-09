@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy, Input } from '@angular/core';
+import { SourceMode } from '../mix-generator/mix-generator.component';
 
 @Component({
   selector: 'app-mix-generator-loader',
@@ -9,7 +10,7 @@ import { Component, OnInit, OnDestroy, Input } from '@angular/core';
   styleUrls: ['./mix-generator-loader.component.scss']
 })
 export class MixGeneratorLoaderComponent implements OnInit, OnDestroy {
-  @Input() sourceMode: 'followedOnly' | 'mix' | 'playlistsOnly' = 'mix';
+  @Input() sourceMode: SourceMode = 'mix';
   
   progress = 0;
   currentImageIndex = 0;
@@ -68,6 +69,13 @@ export class MixGeneratorLoaderComponent implements OnInit, OnDestroy {
         75: 20000,   // 20 seconds to reach 75%
         90: 25000,   // 25 seconds to reach 90%
         95: 30000    // 30 seconds to reach 95% (max realistic time for mix)
+      },
+      'customSelection': {
+        25: 6000,    // 6 seconds to reach 25%
+        50: 12000,   // 12 seconds to reach 50%
+        75: 22000,   // 22 seconds to reach 75%
+        90: 28000,   // 28 seconds to reach 90%
+        95: 32000    // 32 seconds to reach 95% (max realistic time for customSelection)
       }
     };
     

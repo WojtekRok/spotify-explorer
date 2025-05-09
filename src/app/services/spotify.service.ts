@@ -494,11 +494,8 @@ export class SpotifyService {
   }
   // --- Specific API Methods ---
   async getUserProfile(): Promise<any> {
-    console.log("[Service DEBUG] Calling fetchWebApi for /me...");
     try {
       const profileData = await this.fetchWebApi<any>('/me'); // Assuming fetchWebApi returns parsed JSON
-      console.log("[Service DEBUG] Received /me response:", JSON.stringify(profileData)); // Log the whole object
-      console.log(`[Service DEBUG] Profile ID found in service: ${profileData?.id}`); // Check if ID exists
       return profileData;
     } catch (error) {
         console.error("[Service DEBUG] Error in getUserProfile service method:", error);
@@ -685,7 +682,7 @@ export class SpotifyService {
   private async getSavedAlbumsPage(url: string): Promise<SpotifySavedAlbumResponse> {
     return this.fetchWebApi<SpotifySavedAlbumResponse>(url);
   }
-  
+
   async getAllSavedAlbums(): Promise<SpotifySavedAlbumObject[]> {
     let allItems: SpotifySavedAlbumObject[] = [];
     let nextUrl: string | null = `${this.apiUrl}/me/albums?limit=50&offset=0`;

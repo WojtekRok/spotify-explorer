@@ -37,24 +37,31 @@
           <div *ngIf="!loadingFollowed && !loadingPlaylists" class="btn-group" role="group" aria-label="Select mix source mode">
             <button type="button" class="btn" 
                     [ngClass]="selectedSourceMode === 'followedOnly' ? 'btn-primary' : 'btn-outline-primary'" 
-                    (click)="selectedSourceMode = 'followedOnly'" 
+                    (click)="setSourceMode('followedOnly')" 
                     [disabled]="fullFollowedArtists.length === 0"
                     title="{{ fullFollowedArtists.length === 0 ? 'Requires followed artists' : 'Only use tracks from artists you follow' }}">
               Followed Only
             </button>
             <button type="button" class="btn" 
                     [ngClass]="selectedSourceMode === 'mix' ? 'btn-primary' : 'btn-outline-primary'" 
-                    (click)="selectedSourceMode = 'mix'"
+                    (click)="setSourceMode('mix')"
                     [disabled]="fullFollowedArtists.length === 0 || fullUserPlaylists.length === 0"
                      title="{{ (fullFollowedArtists.length === 0 || fullUserPlaylists.length === 0) ? 'Requires followed artists AND playlists' : 'Mix followed artists & your playlists' }}">
               Mix (Followed + Playlists)
             </button>
             <button type="button" class="btn" 
                     [ngClass]="selectedSourceMode === 'playlistsOnly' ? 'btn-primary' : 'btn-outline-primary'" 
-                    (click)="selectedSourceMode = 'playlistsOnly'"
+                    (click)="setSourceMode('playlistsOnly')"
                      [disabled]="fullUserPlaylists.length === 0"
                      title="{{ fullUserPlaylists.length === 0 ? 'Requires saved playlists' : 'Only use tracks from your playlists' }}">
               Playlists Only
+            </button>
+            <button type="button" class="btn" 
+                [ngClass]="selectedSourceMode === 'customSelection' ? 'btn-primary' : 'btn-outline-primary'" 
+                (click)="setSourceMode('customSelection')"
+                [disabled]="fullFollowedArtists.length === 0 && fullUserPlaylists.length === 0"
+                title="Select specific artists/playlists">
+          Custom Selection
             </button>
           </div>
            <div *ngIf="!loadingFollowed && fullFollowedArtists.length === 0 && (selectedSourceMode === 'followedOnly' || selectedSourceMode === 'mix')" class="text-danger small mt-1">
@@ -73,23 +80,102 @@
               <span *ngIf="generatingMix" class="spinner-border spinner-border-sm" aria-hidden="true"></span>
               <span role="status">{{ generatingMix ? 'Generating...' : 'GENERATE NOW' }}</span>
           </button>
+      </div> 
+
+      <!-- == Custom Selection UI (conditional) == -->
+    <div *ngIf="selectedSourceMode === 'customSelection' && !loadingFollowed && !loadingPlaylists" class="custom-selection-area mt-3 mb-3 p-3 border rounded">
+      <h5 class="mb-3">Custom Selection Options:</h5>
+      <!-- Number of Tracks for Custom (Limited) -->
+      <div class="mb-3">
+        <label class="form-label d-block fw-bold">Number of Tracks (Custom)</label>
+        <div class="btn-group" role="group">
+          <button type="button" class="btn" 
+                  [ngClass]="selectedLength === 10 ? 'btn-info' : 'btn-outline-info'" 
+                  (click)="selectedLength = 10">10</button>
+          <button type="button" class="btn" 
+                  [ngClass]="selectedLength === 30 ? 'btn-info' : 'btn-outline-info'" 
+                  (click)="selectedLength = 30">30</button>           
+          <!-- <button type="button" class="btn btn-outline-secondary" disabled *ngIf="selectedLength === 50" title="Max 30 for custom">50 (Not for Custom)</button> -->
+        </div>
       </div>
+      <!-- === START: Select Followed Artists === -->
+      <div class="mb-3" *ngIf="fullFollowedArtists.length > 0">
+        <label class="form-label d-block fw-bold">Select up to {{ MAX_CUSTOM_ARTISTS }} Artists You Follow:</label>
+        <div class="selection-list p-2 border rounded" style="max-height: 200px; overflow-y: auto;">
+            <div *ngFor="let artist of fullFollowedArtists" 
+                 class="form-check custom-selection-item" 
+                 (click)="toggleCustomArtist(artist)" 
+                 [class.selected-item]="isArtistCustomSelected(artist.id)"
+                 title="{{ artist.name }}">
+                <input class="form-check-input" type="checkbox" 
+                       [checked]="isArtistCustomSelected(artist.id)"
+                       [disabled]="!isArtistCustomSelected(artist.id) && customSelectedArtistIds.length >= MAX_CUSTOM_ARTISTS"
+                       id="artist-{{artist.id}}">
+                <label class="form-check-label text-truncate" for="artist-{{artist.id}}">
+                    <img [src]="artist.images?.[2]?.url || artist.images?.[0]?.url || 'assets/no-image.jpg'" 
+                         alt="{{ artist.name }}" class="me-2 rounded-circle" width="25" height="25">
+                    {{ artist.name }}
+                </label>
+            </div>
+        </div>
+        <div class="form-text small">{{ customSelectedArtistIds.length }} / {{ MAX_CUSTOM_ARTISTS }} artists selected.</div>
+      </div>
+    <div *ngIf="fullFollowedArtists.length === 0 && !loadingFollowed" class="text-muted small mb-3">
+        You are not following any artists, or they haven't loaded yet.
+    </div>
+    <!-- === END: Select Followed Artists === -->
+
+    <!-- === START: Select User Playlists === -->
+    <div class="mb-2" *ngIf="fullUserPlaylists.length > 0">
+        <label class="form-label d-block fw-bold">Select up to {{ MAX_CUSTOM_PLAYLISTS }} of Your Playlists:</label>
+        <div class="selection-list p-2 border rounded" style="max-height: 200px; overflow-y: auto;">
+             <div *ngFor="let playlist of fullUserPlaylists" 
+                  class="form-check custom-selection-item" 
+                  (click)="toggleCustomPlaylist(playlist)"
+                  [class.selected-item]="isPlaylistCustomSelected(playlist.id)"
+                  title="{{ playlist.name }}">
+                <input class="form-check-input" type="checkbox" 
+                       [checked]="isPlaylistCustomSelected(playlist.id)"
+                       [disabled]="!isPlaylistCustomSelected(playlist.id) && customSelectedPlaylistIds.length >= MAX_CUSTOM_PLAYLISTS"
+                       id="playlist-{{playlist.id}}"> 
+                <label class="form-check-label text-truncate" for="playlist-{{playlist.id}}">
+                    <img [src]="playlist.images?.[0]?.url || 'assets/no-image.jpg'" 
+                         alt="{{ playlist.name }}" class="me-2 rounded" width="25" height="25">
+                    {{ playlist.name }} ({{ playlist.tracks.total }} tracks)
+                </label>
+            </div>
+        </div>
+         <div class="form-text small">{{ customSelectedPlaylistIds.length }} / {{ MAX_CUSTOM_PLAYLISTS }} playlists selected.</div>
+    </div>
+    <div *ngIf="fullUserPlaylists.length === 0 && !loadingPlaylists" class="text-muted small mb-3">
+        You don't have any playlists, or they haven't loaded yet.
+    </div>
+    <!-- === END: Select User Playlists === -->
+    </div>
+
+    <!-- Adjust Number of Tracks buttons if not in custom mode -->
+    <div class="mb-3" *ngIf="selectedSourceMode !== 'customSelection'">
+      <label class="form-label d-block fw-bold">Number of Tracks</label>
+      <div class="btn-group" role="group" aria-label="Select number of tracks">
+      </div>
+    </div>
+
   
-       <!-- General Error Display -->
-      <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+      <!-- General Error Display -->
+    <div *ngIf="feedbackMessage"  class="alert alert-dismissible fade show small py-1 my-2" 
+      role="alert"
+      [ngClass]="{ 
+          'alert-success': feedbackMessage.type === 'success',
+          'alert-danger': feedbackMessage.type === 'error',
+          'alert-warning': feedbackMessage.type === 'warning',
+          'alert-info': feedbackMessage.type === 'info' 
+      }">
+  {{ feedbackMessage.text }}
+      <button type="button" class="btn-close btn-sm" aria-label="Close" (click)="clearActionFeedback()"></button> 
+    </div>
 
       <!-- == Results Section == -->
-      <div *ngIf="generatingMix || generatedTracks.length > 0" class="results-section mt-4">
-        <!-- == Loading Indicator == -->
-        <!-- <div *ngIf="generatingMix" class="text-center my-5 p-4 border rounded bg-white shadow-sm">          
-          <img src="assets/cooking-icon.png" alt="Cooking..." class="loading-image mb-3">
-          <div class="cooking-animation mb-3">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-          </div>
-        </div>
-         <h4 class="mb-3">Generated Mix ({{ generatedTracks.length }} Tracks)</h4> -->
+      <div *ngIf="generatingMix || generatedTracks.length > 0" class="results-section mt-4">ve
          <app-mix-generator-loader *ngIf="generatingMix" [sourceMode]="selectedSourceMode"></app-mix-generator-loader>
          
          <!-- Result List -->

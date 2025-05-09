@@ -53,3 +53,28 @@
     max-width: 250px;    /* Set a maximum width - ADJUST AS NEEDED */
     height: auto;        /* Maintain aspect ratio */
   }
+
+  .custom-selection-item {
+    padding: 0.3rem 1.5rem;
+    border-radius: 0.2rem;
+    margin-bottom: 2px;
+    transition: background-color 0.2s ease-in-out;
+  
+    &:hover {
+      background-color: #f8f9fa; // Light grey on hover
+    }
+  
+    &.selected-item {
+      background-color: #cfe2ff; // Bootstrap's primary-bg-subtle
+      // color: #0a58ca; // Bootstrap's primary-text-emphasis
+      font-weight: 500;
+    }
+  
+    .form-check-input {
+      margin-top: 0.4em; // Adjust alignment with text
+    }
+    
+    label {
+      width: calc(100% - 25px); // Ensure label doesn't overflow when input is present
+    }
+  }

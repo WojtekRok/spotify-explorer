@@ -141,9 +141,8 @@ export class UserStatsComponent implements OnInit {
     return artists.map(a => a.name).join(', ');
   }
 
-  login(): void {
-    // Redirect back to this page after login
-    this.spotifyService.authorize('/user-stats'); 
+  login(): void {    
+    this.spotifyService.authorize('/stats'); 
   }
 
    handleImageError(event: Event): void {
