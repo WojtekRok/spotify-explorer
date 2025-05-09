@@ -56,9 +56,12 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
   saveError: string | null = null;  
   isLoggedIn: boolean = false;
 
-  // Feedback Message state (as implemented before)
-  feedbackMessage: FeedbackMessage | null = null;
-  //feedbackMessage: { type: string, text: string } | null = null;
+  customSearchTerm: string = '';
+  filteredFollowedArtists: SpotifyArtist[] = [];
+  filteredUserPlaylists: SpotifyPlaylist[] = [];  
+
+  
+  feedbackMessage: FeedbackMessage | null = null;  
   private feedbackTimeout: any = null;
 
   private destroy$ = new Subject<void>(); // Keep if used for other subscriptions
@@ -180,7 +183,7 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
     this.fullFollowedArtists = []; this.followedArtistIds.clear();
     try {
         this.fullFollowedArtists = await this.spotifyService.getAllFollowedArtists();
-        this.fullFollowedArtists.forEach(artist => this.followedArtistIds.add(artist.id));
+        this.filteredFollowedArtists = [...this.fullFollowedArtists];
         console.log(`Loaded ${this.fullFollowedArtists.length} total followed artists.`);
     } catch (err: any) { this.handleError(err, "Could not load followed artists."); }
     finally { this.loadingFollowed = false; this.cdRef.detectChanges(); }
@@ -192,6 +195,7 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
     try {
         const playlists = await this.spotifyService.getAllUserPlaylists();
         this.fullUserPlaylists = playlists.filter(p => p.tracks?.total > 0 && p.owner); // Ensure owner exists
+        this.filteredUserPlaylists = [...this.fullUserPlaylists]; 
         console.log(`Loaded ${this.fullUserPlaylists.length} total non-empty user playlists.`);
     } catch (err: any) { this.handleError(err, "Could not load user playlists."); }
     finally { this.loadingPlaylists = false; this.cdRef.detectChanges(); }
@@ -254,7 +258,9 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
     const ALBUMS_PER_ARTIST = 1;    
     const TRACKS_PER_ALBUM = 2;     
     const PLAYLIST_SAMPLE_COUNT = Math.min(12, Math.max(8, this.selectedLength / 2)); 
-    const PLAYLIST_SAMPLE_SIZE = 10; 
+    const PLAYLIST_SAMPLE_SIZE = 10;
+    const TARGET_CUSTOM_ARTIST_TRACKS = Math.ceil(this.selectedLength * 0.5); 
+    const TARGET_CUSTOM_PLAYLIST_TRACKS = this.selectedLength - TARGET_CUSTOM_ARTIST_TRACKS;
 
     try {
         // --- Ensure Base Data Loaded ---
@@ -408,21 +414,22 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
                 console.log(`Collected ${artistTopTrackCount} unique top tracks from followed artists for 'Mix'.`);
             } // End artist fetch for Mix
         } 
-         // --- MODE D: Custom Selection ---
+        // --- MODE D: Custom Selection ---
         else if (this.selectedSourceMode === 'customSelection'){
           this.generatingMixStatus = 'Fetching tracks from custom selections...'; this.cdRef.detectChanges();
           if (this.customSelectedArtistIds.length === 0 && this.customSelectedPlaylistIds.length === 0) {
               throw new Error("Please select at least one artist or playlist for custom selection mode.");
           }
-          let customArtistTrackCount = 0;
-          let customPlaylistTrackCount = 0;
+
+          const customArtistTrackPool: GeneratedTrackInfo[] = [];
+          const customPlaylistTrackPool: GeneratedTrackInfo[] = [];
 
           // --- Fetch from Selected Followed Artists (Albums + Top Tracks) ---
           if (this.customSelectedArtistIds.length > 0) {
               console.log(`Fetching for ${this.customSelectedArtistIds.length} custom selected artists.`);
               for (const artistId of this.customSelectedArtistIds) {
                   const artist = this.fullFollowedArtists.find(a => a.id === artistId);
-                  if (!artist) { /* ... */ continue; }
+                  if (!artist) continue; 
                   this.generatingMixStatus = `Fetching from artist: ${artist.name}...`; this.cdRef.detectChanges();
                   // Fetch from Albums/Singles
                   await this.delay(200);
@@ -436,8 +443,7 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
                           tracksToAddFromAlbum.forEach((track: SpotifyAlbumTrack) => {
                               if (track?.id && !fetchedTrackIds.has(track.id)) {
                                   fetchedTrackIds.add(track.id);
-                                  rawTrackList.push({ track: this.mapAlbumTrackToFullTrack(track, albumToSample), sourceType: 'followedArtistAlbum', sourceName: artist.name, sourceAlbumName: albumToSample.name });
-                                  customArtistTrackCount++;
+                                  customArtistTrackPool.push({ track: this.mapAlbumTrackToFullTrack(track, albumToSample), sourceType: 'followedArtistAlbum', sourceName: artist.name, sourceAlbumName: albumToSample.name });
                               }
                           });
                       }
@@ -449,12 +455,12 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
                       topTracksData?.tracks?.forEach((track: SpotifyTrack) => {
                           if (track?.id && !fetchedTrackIds.has(track.id)) {
                               fetchedTrackIds.add(track.id);
-                              rawTrackList.push({ track: track, sourceType: 'followedArtistTopTrack', sourceName: artist.name });
-                              customArtistTrackCount++;
+                              customArtistTrackPool.push({ track: track, sourceType: 'followedArtistTopTrack', sourceName: artist.name });
                           }
                       });
                   } catch (err) { console.log(err) }
               } 
+              console.log(`Collected ${customArtistTrackPool.length} potential tracks from custom artists.`);
           } 
 
           // --- Fetch from Selected Playlists ---
@@ -462,25 +468,25 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
               console.log(`Fetching for ${this.customSelectedPlaylistIds.length} custom selected playlists.`);
               for (const playlistId of this.customSelectedPlaylistIds) {
                   const playlist = this.fullUserPlaylists.find(p => p.id === playlistId);
-                  if (!playlist) { /* ... */ continue; }
+                  if (!playlist) continue;
                   this.generatingMixStatus = `Fetching from playlist: ${playlist.name}...`; this.cdRef.detectChanges();
                   await this.delay(150);
                   try {
-                      // Using getAllPlaylistTracks as decided
                       const tracksInPlaylist: SpotifyTrack[] = await this.spotifyService.getAllPlaylistTracks(playlist.id);
-                      // No further sampling needed as per last discussion for this mode
+                       // Add ALL unique tracks from these selected playlists
                       tracksInPlaylist.forEach((track: SpotifyTrack) => {
                           if (track?.id && !fetchedTrackIds.has(track.id)) {
                               fetchedTrackIds.add(track.id);
-                              rawTrackList.push({ track: track, sourceType: 'playlist', sourceName: playlist.name });
-                              customPlaylistTrackCount++;
+                              customPlaylistTrackPool.push({ track: track, sourceType: 'playlist', sourceName: playlist.name });
                           }
                       });
                   } catch (listErr) { console.log(listErr) }
               }
-          } 
-          console.log(`Collected ${customArtistTrackCount} tracks from custom artists and ${customPlaylistTrackCount} from custom playlists.`);
+              console.log(`Collected ${customPlaylistTrackPool.length} potential tracks from custom playlists.`);
+          }           
+          rawTrackList.push(...customArtistTrackPool, ...customPlaylistTrackPool);
         }
+        
 
         // --- STEP 2: Process Tracks ---
         this.generatingMixStatus = 'Processing tracks...'; this.cdRef.detectChanges();
@@ -495,10 +501,56 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
         let finalTracks: GeneratedTrackInfo[] = [];
         const artistTrackCount: { [artistId: string]: number } = {};
         // --- Specific logic for 'customSelection' with only artists ---
-        if (this.selectedSourceMode === 'customSelection' && 
-          this.customSelectedArtistIds.length > 0 && 
-          this.customSelectedPlaylistIds.length === 0) {
-          
+        if (this.selectedSourceMode === 'customSelection' && this.customSelectedArtistIds.length > 0 && this.customSelectedPlaylistIds.length > 0) {
+          // --- Custom MIX: Artists + Playlists (Aim for 50/50) ---
+          console.log(`Balancing custom artists & playlists. Target: ${TARGET_CUSTOM_ARTIST_TRACKS} artist, ${TARGET_CUSTOM_PLAYLIST_TRACKS} playlist.`);
+           // Separate processed tracks by source for this specific mode
+          const availableCustomArtistTracks = this.shuffleArray(processedTracks.filter(item => 
+          item.sourceType === 'followedArtistAlbum' || item.sourceType === 'followedArtistTopTrack'
+          ));
+          const availableCustomPlaylistTracks = this.shuffleArray(processedTracks.filter(item => 
+          item.sourceType === 'playlist' // Assuming 'playlist' source is only from custom selected playlists in this mode
+          ));
+          // Apply cap of 2 per artist *within the artist pool* first
+          const cappedCustomArtistTracks: GeneratedTrackInfo[] = [];
+          for (const item of availableCustomArtistTracks) {
+              const primaryArtistId = item.track.artists?.[0]?.id;
+              if (primaryArtistId) {
+                  const currentCount = artistTrackCount[primaryArtistId] || 0;
+                  if (currentCount < 2) { // Standard cap of 2
+                      cappedCustomArtistTracks.push(item);
+                      artistTrackCount[primaryArtistId] = currentCount + 1;
+                  }
+              } else { cappedCustomArtistTracks.push(item); } // Include tracks with no primary artist
+          }
+          console.log(`Custom artist tracks after preliminary cap: ${cappedCustomArtistTracks.length}`);
+
+          // Fill final list with priority to artist tracks up to TARGET_CUSTOM_ARTIST_TRACKS
+          finalTracks.push(...cappedCustomArtistTracks.slice(0, TARGET_CUSTOM_ARTIST_TRACKS));
+           // Fill remaining with playlist tracks
+           const neededPlaylistTracks = this.selectedLength - finalTracks.length;
+           if (neededPlaylistTracks > 0) {
+               finalTracks.push(...availableCustomPlaylistTracks.slice(0, neededPlaylistTracks));
+           }
+           // If still short, fill with any remaining artist tracks, then any remaining playlist tracks
+            let currentFinalIds = new Set(finalTracks.map(item => item.track.id));
+            if (finalTracks.length < this.selectedLength) {
+                cappedCustomArtistTracks.slice(finalTracks.filter(ft => ft.sourceType.includes('Artist')).length).forEach(item => {
+                    if (finalTracks.length < this.selectedLength && !currentFinalIds.has(item.track.id)) {
+                        finalTracks.push(item); currentFinalIds.add(item.track.id);
+                    }
+                });
+            }
+            if (finalTracks.length < this.selectedLength) {
+                 availableCustomPlaylistTracks.slice(finalTracks.filter(ft => ft.sourceType === 'playlist').length).forEach(item => {
+                     if (finalTracks.length < this.selectedLength && !currentFinalIds.has(item.track.id)) {
+                         finalTracks.push(item); currentFinalIds.add(item.track.id);
+                     }
+                 });
+            }
+           this.generatedTracks = this.shuffleArray(finalTracks).slice(0, this.selectedLength); // Final shuffle & precise slice
+        } 
+        else if (this.selectedSourceMode === 'customSelection' && this.customSelectedArtistIds.length > 0) {
           console.log("Applying balanced artist selection for 'Custom Artists Only' mode.");
           const idealTracksPerArtist = Math.ceil(this.selectedLength / this.customSelectedArtistIds.length);
           // Adjust maxPerArtist dynamically, ensuring it's at least 1, and not excessively large if few artists selected.
@@ -517,7 +569,6 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
                   tracksByArtist[primaryArtistId].push(item);
               }
           }
-
           // First pass: try to get up to 'maxPerArtistInitial' from each selected artist
           for (const artistId of this.customSelectedArtistIds) {
               const artistTracks = this.shuffleArray(tracksByArtist[artistId] || []); // Shuffle this artist's tracks
@@ -535,7 +586,6 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
               }
           }
           console.log(`Tracks after initial balanced pass: ${finalTracks.length}`);
-
           // Second pass: If still short, fill remaining slots from the pool of processed tracks,
           // without strict adherence to initial idealTracksPerArtist, but still ensuring not too skewed.
           // We'll use a slightly higher cap for this fill pass.
@@ -665,6 +715,45 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
         this.cdRef.detectChanges();
     }
   } // --- End generateMix ---
+
+  filterCustomSelections(): void {
+    const searchTerm = this.customSearchTerm.toLowerCase().trim();
+    
+    // If search term is empty, show all
+    if (!searchTerm) {
+      this.filteredFollowedArtists = this.fullFollowedArtists;
+      this.filteredUserPlaylists = this.fullUserPlaylists;
+      return;
+    }
+    
+    // Filter artists by name match
+    this.filteredFollowedArtists = this.fullFollowedArtists.filter(artist => 
+      artist.name.toLowerCase().includes(searchTerm)
+    );
+    
+    // Filter playlists by name match
+    this.filteredUserPlaylists = this.fullUserPlaylists.filter(playlist => 
+      playlist.name.toLowerCase().includes(searchTerm)
+    );
+  }
+
+  /**
+ * Clears the search term and resets the filtered lists
+ */
+  clearCustomSearch(): void {
+    this.customSearchTerm = '';
+    this.filteredFollowedArtists = this.fullFollowedArtists;
+    this.filteredUserPlaylists = this.fullUserPlaylists;
+  }
+
+  /**
+   * Initialize the filtered lists whenever the source data changes
+   * Call this when loadFollowedArtists() and loadUserPlaylists() complete
+   */
+  initializeFilteredLists(): void {
+    this.filteredFollowedArtists = this.fullFollowedArtists;
+    this.filteredUserPlaylists = this.fullUserPlaylists;
+  }
 
   private mapAlbumTrackToFullTrack(albumTrack: SpotifyAlbumTrack, sourceAlbum: SpotifyArtistAlbum): SpotifyTrack {
     if (!albumTrack) {

@@ -1,80 +1,239 @@
-/* Style for the loading animation container */
-.cooking-animation {
-    display: flex; /* Use flexbox to lay out dots */
-    justify-content: center; /* Center dots horizontally */
-    align-items: center; /* Align dots vertically */
-    min-height: 30px; /* Give it some minimum height */
-  }
-  /* Individual dot styling */
-.cooking-animation .dot {
-    display: inline-block;
-    width: 10px;           /* Size of each dot */
-    height: 10px;
-    margin: 0 4px;          /* Space between dots */
-    // Use your app's primary or success color - using Bootstrap's success green as example
-    background-color: var(--bs-success, #198754); 
-    border-radius: 50%;     /* Make them round */
-    
-    /* Apply the animation */
-    /* name duration timing-function delay iteration-count direction fill-mode */
-    animation: cooking-pulse 1.4s infinite ease-in-out both; 
-  }
-  
-  /* Stagger the animation start for each dot */
-  .cooking-animation .dot:nth-child(1) {
-    animation-delay: -0.32s;
-  }
-  
-  .cooking-animation .dot:nth-child(2) {
-    animation-delay: -0.16s;
-  }
-  
-  .cooking-animation .dot:nth-child(3) {
-     /* No delay needed for the third one relative to the base animation */
-     animation-delay: 0s; 
-  }
-  
-  /* Define the keyframes for the pulsing effect */
-  @keyframes cooking-pulse {
-    0%, 80%, 100% {
-      transform: scale(0.4); /* Start/end smaller */
-      opacity: 0.5;
-    }
-    40% {
-      transform: scale(1.0); /* Pulse to full size */
-      opacity: 1;
-    }
-  }
-  /* Style for the loading image */
-.loading-image {
-    display: block;      /* Prevents extra space below if inline */
-    margin-left: auto;   /* Center the image horizontally */
-    margin-right: auto;
-    max-width: 250px;    /* Set a maximum width - ADJUST AS NEEDED */
-    height: auto;        /* Maintain aspect ratio */
-  }
+/* src/app/features/mix-generator/mix-generator.component.scss */
 
-  .custom-selection-item {
-    padding: 0.3rem 1.5rem;
-    border-radius: 0.2rem;
-    margin-bottom: 2px;
-    transition: background-color 0.2s ease-in-out;
+// Variables
+$primary-color: var(--bs-primary, #0d6efd);
+$success-color: var(--bs-success, #198754);
+$border-radius: 10px;
+$transition-speed: 0.25s;
+
+.mix-generator {
+  max-width: 1100px; // Increased from 900px to accommodate side-by-side layout
+  margin: 0 auto;
   
-    &:hover {
-      background-color: #f8f9fa; // Light grey on hover
+  h1 {
+    color: #333;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(45deg, $primary-color, $success-color);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+// Config Card
+.config-card, .custom-selection-card, .save-section {
+  border-radius: $border-radius;
+  overflow: hidden;
+  transition: all $transition-speed ease;
+  
+  .card-header {
+    padding: 1.5rem 1.5rem 0.75rem;
+  }
+  
+  .card-body {
+    padding: 1.5rem;
+  }
+  
+  &:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+  }
+}
+
+// Source Buttons
+.source-options {
+  .source-btn {
+    border-radius: 0.25rem;
+    margin: 0 0.25rem;
+    padding: 0.75rem 0.5rem;
+    transition: all $transition-speed ease;
+
+    &:first-child {
+      margin-left: 0;
     }
-  
-    &.selected-item {
-      background-color: #cfe2ff; // Bootstrap's primary-bg-subtle
-      // color: #0a58ca; // Bootstrap's primary-text-emphasis
+    
+    &:last-child {
+      margin-right: 0;
+    }
+    
+    .source-btn-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      min-height: 2.5rem;
+      
+      i {
+        font-size: 1.2rem;
+        margin-bottom: 0.25rem;
+      }
+    }
+    
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+    }
+    
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// Selection Lists
+.selection-list {
+  .selection-item {
+    margin-bottom: 0.25rem;
+    transition: background-color $transition-speed ease;
+    cursor: pointer;
+    
+    &:hover:not(.disabled) {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    &.selected {
+      background-color: rgba($primary-color, 0.1);
       font-weight: 500;
     }
-  
-    .form-check-input {
-      margin-top: 0.4em; // Adjust alignment with text
-    }
     
-    label {
-      width: calc(100% - 25px); // Ensure label doesn't overflow when input is present
+    &.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
   }
+}
+
+// Track List
+.track-list {
+  .track-item {
+    transition: background-color $transition-speed ease;
+    border-left: none;
+    border-right: none;
+    padding: 0.75rem 1rem;
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+    
+    .track-number {
+      min-width: 2em;
+      text-align: right;
+    }
+    
+    .track-image {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+      object-fit: cover;
+    }
+    
+    .track-actions {
+      opacity: 0.7;
+      transition: opacity $transition-speed ease;
+    }
+    
+    &:hover .track-actions {
+      opacity: 1;
+    }
+    
+    .source-info {
+      color: #6c757d;
+    }
+  }
+}
+
+// Generate Button Animation and Styling
+.generate-btn {
+  transition: all $transition-speed ease;
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3);
+  background: linear-gradient(45deg, #157347, #198754); // Using explicit color values instead of darken()
+  border: none;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+                              rgba(255, 255, 255, 0) 0%, 
+                              rgba(255, 255, 255, 0.2) 50%, 
+                              rgba(255, 255, 255, 0) 100%);
+    transition: all 0.8s ease;
+  }
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(25, 135, 84, 0.5);
+    
+    &::before {
+      left: 100%;
+    }
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(25, 135, 84, 0.4);
+  }
+  
+  &:disabled {
+    opacity: 0.7;
+  }
+}
+
+// Login Prompt
+.login-prompt {
+  border-radius: $border-radius;
+  transition: all $transition-speed ease;
+  
+  &:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// Save Success Animation
+.save-success {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+// Results Section
+.results-section {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+// Animations
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Responsive Adjustments
+@media (max-width: 768px) {
+  .source-options {
+    .btn-group {
+      flex-direction: column;
+      width: 100%;
+      
+      .source-btn {
+        margin: 0.25rem 0;
+        border-radius: 0.25rem !important;
+        
+        .source-btn-content {
+          flex-direction: row;
+          
+          i {
+            margin-bottom: 0;
+            margin-right: 0.5rem;
+          }
+        }
+      }
+    }
+  }
+}
