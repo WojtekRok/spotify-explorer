@@ -1,47 +1,100 @@
-<div class="container">
+<!-- src/app/components/home/home.component.html -->
+<div class="home-page">
+  <!-- Hero Section -->
   <div class="hero-section">
-    <h1>Welcome to Spotify Explorer</h1>
-    <p>Discover music, artists, and playlists using the Spotify API</p>
-    
-    <button *ngIf="!isLoggedIn" class="btn btn-success" (click)="login()">
-      Connect with Spotify
-    </button>
+    <div class="container py-4 text-center">
+      <h1 class="display-3 fw-bold mb-3">Welcome to MeloVerse</h1>
+      <p class="lead mb-4 mx-auto">Discover, explore, and organize your music world in one place. Connect with your Spotify account to unlock a universe of possibilities.</p>
+      <div class="hero-buttons">
+        <button *ngIf="!isLoggedIn" class="btn btn-success btn-lg px-4 py-2 me-3" (click)="login()">
+          <i class="bi bi-spotify me-2"></i>
+          Connect with Spotify
+        </button>
+      </div>
+    </div>
   </div>
 
-  <div class="features-grid">
-    <!-- <div class="feature-card">
-      <div class="icon">🔍</div>
-      <h3>Search</h3>
-      <p>Find your favorite music by searching for artists, albums, or tracks.</p>
-      <button class="btn btn-outline-success" routerLink="/search">Search Music</button>
-    </div> -->
-    
-    <div class="feature-card">
-      <div class="icon">🆕</div>
-      <h3>New Releases</h3>
-      <p>Discover the latest albums and singles across all genres.</p>
-      <button class="btn btn-outline-success" routerLink="/new-releases">Browse New Music</button>
+  <!-- Features Section -->
+  <div class="features-section py-5">
+    <div class="container">
+      <!-- Mix Generator (Full Width) -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="feature-card featured mix-generator">
+            <div class="d-flex align-items-center mb-2">
+              <div class="feature-icon mb-0 me-3">
+                <i class="bi bi-shuffle fs-1"></i>
+              </div>
+              <h3 class="mb-0 mix-title">Mix Generator</h3>
+            </div>
+            <p>Create custom playlists tailored to your taste. Generate personalized mixes based on your listening history, followed artists, and saved tracks.</p>
+            <button class="btn btn-success mt-2 create-mix-btn" (click)="openMixGenerator()">
+              Create a Mix
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Three Equal Columns -->
+      <div class="row g-4">
+        <!-- Personal Stats -->
+        <div class="col-md-4 mb-4">
+          <div class="feature-card h-100">
+            <div class="feature-icon mb-3">
+              <i class="bi bi-bar-chart-line fs-1"></i>
+            </div>
+            <h3>Personal Stats</h3>
+            <p>Gain insights into your listening habits. See your top tracks and artists over different time periods.</p>
+            <button class="btn btn-outline-success mt-auto w-100" routerLink="/stats">
+              View My Stats
+            </button>
+          </div>
+        </div>
+        
+        <!-- New Releases -->
+        <div class="col-md-4 mb-4">
+          <div class="feature-card h-100">
+            <div class="feature-icon mb-3">
+              <i class="bi bi-music-note-list fs-1"></i>
+            </div>
+            <h3>New Releases</h3>
+            <p>Stay up-to-date with the latest music. Browse newly released albums, singles, and EPs.</p>
+            <button class="btn btn-outline-success mt-auto w-100" routerLink="/new-releases">
+              Explore New Music
+            </button>
+          </div>
+        </div>
+        
+        <!-- Library Explorer -->
+        <div class="col-md-4 mb-4">
+          <div class="feature-card h-100">
+            <div class="feature-icon mb-3">
+              <i class="bi bi-collection-play fs-1"></i>
+            </div>
+            <h3>Library Explorer</h3>
+            <p>Organize and manage your personal collection. Browse your saved artists, albums, and playlists all in one convenient location.</p>
+            <button class="btn btn-outline-success mt-auto w-100" routerLink="/library">
+              Explore My Library
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-    
-    <div class="feature-card">
-      <div class="icon">📊</div>
-      <h3>User Stats</h3>
-      <p>See your listening statistics for weekly, monthly, and yearly periods.</p>
-      <button class="btn btn-outline-success" routerLink="/stats">View My Stats</button>
-    </div>
-    
-    <div class="feature-card">
-      <div class="icon">🎲</div>
-      <h3>Mix Generator</h3>
-      <p>Create custom playlists based on genres, decades, and more.</p>
-      <button class="btn btn-outline-success" (click)="openMixGenerator()">Create Mix</button>
-    </div>
-    
-    <div class="feature-card">
-      <div class="icon">🎶</div>
-      <h3>Library Explorer</h3>
-      <p>View and manage your saved artists, albums, and playlists.</p>
-      <button class="btn btn-outline-success" routerLink="/library">Explore My Library</button>
+  </div>
+  
+  <!-- CTA Section -->
+  <div class="cta-section py-5">
+    <div class="container text-center">
+      <h2 class="mb-4">Ready to Enhance Your Music Experience?</h2>
+      <p class="lead mb-4">Connect your Spotify account now and start exploring your musical universe.</p>
+      <button *ngIf="!isLoggedIn" class="btn btn-success btn-lg px-5 py-3" (click)="login()">
+        <i class="bi bi-spotify me-2"></i>
+        Connect with Spotify
+      </button>
+      <button *ngIf="isLoggedIn" class="btn btn-success btn-lg px-5 py-3" (click)="openMixGenerator()">
+        <i class="bi bi-shuffle me-2"></i>
+        Create Your First Mix
+      </button>
     </div>
   </div>
 </div>

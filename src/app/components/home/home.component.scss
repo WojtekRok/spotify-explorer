@@ -1,64 +1,212 @@
+/* src/app/components/home/home.component.scss */
+
+// Variables
+$primary-color: var(--bs-primary, #0d6efd);
+$success-color: var(--bs-success, #198754);
+$border-radius: 10px;
+$transition-speed: 0.25s;
+
+// Hero Section
 .hero-section {
-  background: linear-gradient(135deg, #121212 0%, #1DB954 100%);
+  background: linear-gradient(135deg, #198754 0%, #0d6efd 100%);
   color: white;
-  padding: 4rem 2rem;
-  border-radius: 12px;
-  margin-bottom: 2rem;
-  text-align: center;
+  position: relative;
+  overflow: hidden;
+  padding: 3rem 0; // Reduced padding to make hero section height 10-15% less
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1IiBoZWlnaHQ9IjUiPgo8cmVjdCB3aWR0aD0iNSIgaGVpZ2h0PSI1IiBmaWxsPSIjMDAwMDAwIj48L3JlY3Q+CjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuMSI+PC9yZWN0Pgo8L3N2Zz4=');
+    opacity: 0.1;
+  }
+  
+  .container {
+    padding-top: 0.5rem; // Reduced vertical padding 
+    padding-bottom: 0.5rem;
+  }
   
   h1 {
-    font-size: 3rem;
-    margin-bottom: 1rem;
+    font-weight: 800;
+    margin-bottom: 1rem; // Reduced from 1.5rem
+    
+    @media (max-width: 768px) {
+      font-size: 2.25rem; // Slightly smaller on mobile
+    }
   }
   
-  p {
-    font-size: 1.2rem;
-    margin-bottom: 2rem;
+  .lead {
+    font-size: 1.1rem; // Slightly smaller
+    font-weight: 300;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 1rem; // Reduced margin
+    
+    @media (max-width: 768px) {
+      font-size: 1rem;
+    }
+  }
+  
+  .hero-buttons {
+    .btn {
+      margin-bottom: 0.5rem;
+      
+      @media (min-width: 576px) {
+        margin-bottom: 0;
+      }
+    }
   }
 }
 
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
+// Features Section
+.features-section {
+  background-color: white;
+  padding: 3rem 0; // Slightly reduced padding
   
-  @media (max-width: 992px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  @media (max-width: 576px) {
-    grid-template-columns: 1fr;
+  h2 {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 3rem;
+    font-weight: 700;
+    color: #333;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -15px;
+      width: 50px;
+      height: 3px;
+      background: linear-gradient(to right, $success-color, $primary-color);
+      transform: translateX(-50%);
+    }
   }
 }
 
+// Feature Cards
 .feature-card {
   background: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: $border-radius;
+  padding: 2rem;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  transition: transform $transition-speed ease, box-shadow $transition-speed ease;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   
   &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-10px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
   }
   
-  .icon {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
+  &.featured {
+    border-color: $success-color;
+    border-width: 2px;
+    box-shadow: 0 8px 20px rgba($success-color, 0.15);
+    margin-bottom: 1.5rem; // Added margin to separate from the cards below
+    
+    &:hover {
+      box-shadow: 0 15px 30px rgba($success-color, 0.2);
+    }
+    
+    .feature-icon {
+      background: rgba($success-color, 0.15);
+      color: $success-color;
+    }
+  }
+  
+  &.mix-generator {
+    padding: 1.5rem;
+    background: linear-gradient(to right, rgba($success-color, 0.05), rgba($primary-color, 0.05));
+    border-left: 4px solid $success-color;
+    
+    .mix-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, $success-color, $primary-color);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-fill-color: transparent;
+    }
+    
+    .create-mix-btn {
+      width: auto;
+      padding-left: 2rem;
+      padding-right: 2rem;
+      float: right;
+    }
+  }
+  
+  .feature-icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: rgba($success-color, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $success-color;
+    margin-bottom: 1.5rem;
+    
+    .mix-generator & {
+      margin-bottom: 0;
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, rgba($success-color, 0.2), rgba($primary-color, 0.2));
+    }
   }
   
   h3 {
     font-size: 1.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    color: #333;
   }
   
   p {
-    color: #555;
+    color: #6c757d;
     margin-bottom: 1.5rem;
+    flex-grow: 1;
+  }
+}
+
+// CTA Section
+.cta-section {
+  background: linear-gradient(135deg, $success-color 0%, $primary-color 100%);
+  color: white;
+  padding: 4rem 0;
+  
+  h2 {
+    font-weight: 700;
+  }
+  
+  .lead {
+    font-weight: 300;
+    max-width: 700px;
+    margin: 0 auto;
   }
   
   .btn {
-    width: 100%;
+    transition: all $transition-speed ease;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 767.98px) {
+  .feature-card {
+    margin-bottom: 1.5rem;
   }
 }

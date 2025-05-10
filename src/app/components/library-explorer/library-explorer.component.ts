@@ -378,11 +378,29 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
           console.log(`Filtered incomplete playlists: Kept ${rawResults.length} out of ${originalCount}`);
           break;
       }  
-      // Add resultType and assign to component property
-      this.searchResults = rawResults.map(item => ({
-        ...item,
-        resultType: apiSearchType, // Use the determined apiSearchType
-      }));
+      this.searchResults = rawResults.map(item => {
+        // Check if the item is already in the user's library
+        let isInLibrary = false;
+        
+        if (apiSearchType === 'artist') {
+          isInLibrary = this.allFollowedArtists.some(a => a.id === item.id);
+        } else if (apiSearchType === 'album') {
+          isInLibrary = this.allSavedAlbums.some(a => a.album.id === item.id);
+        } else if (apiSearchType === 'playlist') {
+          isInLibrary = this.allUserPlaylists.some(p => p.id === item.id);
+        }
+        
+        // If it's in library, add it to addedItemIds Set
+        if (isInLibrary) {
+          this.addedItemIds.add(item.id);
+        }
+        
+        return {
+          ...item,
+          resultType: apiSearchType,
+          isInLibrary: isInLibrary
+        };
+      });
       console.log(`Found ${this.searchResults.length} results.`);
       if (this.searchResults.length === 0) {
         this.searchError = `No displayable results found for "${debouncedQuery}".`; // Set specific message

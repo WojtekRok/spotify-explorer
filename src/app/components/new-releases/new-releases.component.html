@@ -1,78 +1,138 @@
-<!-- new-releases.component.html (Adapted for Spotify + Type Filtering) -->
+<!-- src/app/features/new-releases/new-releases.component.html -->
 <div class="container my-4">
-    <h1 class="mb-4">New Releases</h1>
-  
-    <div *ngIf="!isLoggedIn" class="alert alert-warning">
-      You need to <a (click)="login()" href="javascript:void(0)">login with Spotify</a> to view new releases.
+  <div class="new-releases">
+    <header class="mb-4">
+      <h1 class="display-5 fw-bold">New Releases</h1>
+      <p class="text-muted">Discover the latest music added to Spotify</p>
+    </header>
+    
+    <!-- Login Prompt -->
+    <div *ngIf="!isLoggedIn" class="login-prompt p-5 text-center bg-light rounded shadow-sm">
+      <div class="mb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-spotify text-success" viewBox="0 0 16 16">
+          <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.669 11.538a.498.498 0 0 1-.686.165c-1.879-1.147-4.243-1.407-7.028-.77a.499.499 0 0 1-.222-.973c3.048-.696 5.662-.397 7.77.892a.5.5 0 0 1 .138.686m.979-2.178a.624.624 0 0 1-.858.205c-2.15-1.321-5.428-1.704-7.972-.932a.625.625 0 0 1-.362-1.194c2.905-.881 6.517-.454 8.986 1.063a.624.624 0 0 1 .206.858m.084-2.268C10.154 5.56 5.9 5.419 3.438 6.166a.748.748 0 1 1-.434-1.432c2.825-.857 7.523-.692 10.492 1.07a.747.747 0 1 1-.764 1.288"/>
+        </svg>
+      </div>
+      <h2 class="h4 mb-3">Connect with Spotify</h2>
+      <p class="text-muted mb-4">Sign in to view the latest releases</p>
+      <button (click)="login()" class="btn btn-success btn-lg px-4 py-2">
+        <span class="me-2">Connect with Spotify</span>
+        <i class="bi bi-arrow-right"></i>
+      </button>
     </div>
-  
+    
+    <!-- Main Content When Logged In -->
     <div *ngIf="isLoggedIn">
-      <!-- Filter Controls -->
-      <div class="mb-4">
-        <div class="btn-group" role="group" aria-label="Filter by type">
-          <button type="button" class="btn" 
-                  [ngClass]="selectedAlbumType === 'all' ? 'btn-success' : 'btn-outline-success'" 
-                  (click)="setFilter('all')">All</button>
-          <button type="button" class="btn" 
-                  [ngClass]="selectedAlbumType === 'album' ? 'btn-success' : 'btn-outline-success'" 
-                  (click)="setFilter('album')">Albums</button>
-          <button type="button" class="btn" 
-                  [ngClass]="selectedAlbumType === 'single' ? 'btn-success' : 'btn-outline-success'" 
-                  (click)="setFilter('single')">Singles & EPs</button>
-          <button type="button" class="btn" 
-                  [ngClass]="selectedAlbumType === 'compilation' ? 'btn-success' : 'btn-outline-success'" 
-                  (click)="setFilter('compilation')">Compilations</button> 
+      <!-- Filter Controls Card -->
+      <div class="filter-card card shadow-sm mb-4 border-0">
+        <div class="card-body">
+          <label class="form-label fw-bold mb-2">Filter by Release Type</label>
+          <div class="btn-group w-100" role="group" aria-label="Filter by type">
+            <button type="button" class="btn filter-btn" 
+                    [ngClass]="selectedAlbumType === 'all' ? 'btn-primary' : 'btn-outline-primary'" 
+                    (click)="setFilter('all')">
+              <i class="bi bi-collection-play me-1 d-none d-sm-inline"></i>
+              All
+            </button>
+            <button type="button" class="btn filter-btn" 
+                    [ngClass]="selectedAlbumType === 'album' ? 'btn-primary' : 'btn-outline-primary'" 
+                    (click)="setFilter('album')">
+              <i class="bi bi-disc me-1 d-none d-sm-inline"></i>
+              Albums
+            </button>
+            <button type="button" class="btn filter-btn" 
+                    [ngClass]="selectedAlbumType === 'single' ? 'btn-primary' : 'btn-outline-primary'" 
+                    (click)="setFilter('single')">
+              <i class="bi bi-music-note me-1 d-none d-sm-inline"></i>
+              Singles & EPs
+            </button>
+            <button type="button" class="btn filter-btn" 
+                    [ngClass]="selectedAlbumType === 'compilation' ? 'btn-primary' : 'btn-outline-primary'" 
+                    (click)="setFilter('compilation')">
+              <i class="bi bi-collection me-1 d-none d-sm-inline"></i>
+              Compilations
+            </button> 
+          </div>
         </div>
       </div>
-  
-      <!-- Loading state -->
-      <div *ngIf="loading" class="text-center my-5">
-        <div class="spinner-border text-success" role="status">
+
+      <!-- Loading State -->
+      <div *ngIf="loading" class="text-center p-5">
+        <div class="spinner-border text-success mb-3" role="status">
           <span class="visually-hidden">Loading...</span>
         </div>
+        <p class="text-muted">Loading new releases...</p>
       </div>
-  
-      <!-- Error state -->
+
+      <!-- Error State -->
       <div *ngIf="!loading && error" class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
         {{ error }}
       </div>
-  
-      <!-- Results grid -->
-      <!-- Iterate over filteredNewReleases -->
-      <div *ngIf="!loading && !error && filteredNewReleases.length > 0" class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-4">
-        <!-- Use 'album' as the iteration variable for Spotify data -->
+
+      <!-- Results Grid -->
+      <div *ngIf="!loading && !error && filteredNewReleases.length > 0" 
+           class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-4">
         <div class="col" *ngFor="let album of filteredNewReleases"> 
-          <div class="card h-100 shadow-sm">
-            <!-- Access Spotify image structure -->
-            <img [src]="album.images[0]?.url || 'assets/no-image.jpg'" 
-                 class="card-img-top" 
-                 alt="{{ album.name }}"
-                 (error)="handleImageError($event)">
+          <div class="album-card card h-100 shadow-sm">
+            <!-- Album Type Badge -->
+            <span class="position-absolute top-0 end-0 badge bg-dark m-2 z-index-1" 
+                  *ngIf="album.album_type">
+              {{ album.album_type | titlecase }}
+            </span>
+            
+            <!-- Album Image -->
+            <div class="card-img-container">
+              <img [src]="album.images[0]?.url || 'assets/no-image.jpg'" 
+                  class="album-image" 
+                  alt="{{ album.name }}"
+                  (error)="handleImageError($event)">
+            </div>
+            
             <div class="card-body">
-               <!-- Access Spotify data fields -->
-              <h5 class="card-title text-truncate" title="{{ album.name }}">{{ album.name }}</h5>
-              <!-- Spotify artist structure -->
+              <h5 class="card-title text-truncate fw-bold" title="{{ album.name }}">
+                {{ album.name }}
+              </h5>
               <p class="card-text text-truncate" title="{{ album.artists[0]?.name || 'Unknown Artist' }}"> 
                 {{ album.artists[0]?.name || 'Unknown Artist' }}
               </p>
-              <p class="card-text"><small class="text-muted">Released: {{ album.release_date | date }}</small></p>
+              <p class="card-text">
+                <small class="text-muted">
+                  <i class="bi bi-calendar-event me-1"></i>
+                  Released: {{ album.release_date | date }}
+                </small>
+              </p>
             </div>
-            <div class="card-footer bg-transparent border-top-0">
-              <!-- Spotify external URL -->
-              <a [href]="album.external_urls?.spotify" target="_blank" class="btn btn-sm btn-outline-success w-100">
+            
+            <div class="card-footer bg-white border-top-0 pb-3">
+              <a [href]="album.external_urls?.spotify" 
+                 target="_blank" 
+                 class="btn btn-sm btn-outline-success w-100">
+                <i class="bi bi-spotify me-1"></i>
                 Open in Spotify
               </a>
             </div>
           </div>
         </div>
       </div>
-  
-      <!-- No results state (check filtered list) -->
-      <div *ngIf="!loading && !error && filteredNewReleases.length === 0 && allNewReleases.length > 0" class="alert alert-info">
-        No new releases match the selected filter ({{ selectedAlbumType }}).
+
+      <!-- Empty States -->
+      <div *ngIf="!loading && !error && filteredNewReleases.length === 0 && allNewReleases.length > 0" 
+           class="alert alert-light text-center my-4">
+        <i class="bi bi-filter-circle mb-2 fs-4"></i>
+        <p>No releases match the selected filter.</p>
+        <button class="btn btn-outline-primary mt-2" (click)="setFilter('all')">
+          <i class="bi bi-arrow-repeat me-1"></i>
+          Show All Releases
+        </button>
       </div>
-       <div *ngIf="!loading && !error && filteredNewReleases.length === 0 && allNewReleases.length === 0" class="alert alert-info">
-        No new releases found.
+      
+      <div *ngIf="!loading && !error && filteredNewReleases.length === 0 && allNewReleases.length === 0" 
+           class="alert alert-light text-center my-4">
+        <i class="bi bi-music-note-list mb-2 fs-4"></i>
+        <p>No new releases found at this time.</p>
+        <p class="small text-muted">Check back later for updates from Spotify.</p>
       </div>
     </div>
   </div>
+</div>

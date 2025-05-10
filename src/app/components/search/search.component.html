@@ -1,80 +1,168 @@
-<div class="container">
-    <h1 class="mb-4">Search Spotify</h1>
+<!-- src/app/features/search/search.component.html -->
+<div class="container my-4">
+  <div class="search-component">
+    <header class="mb-4">
+      <h1 class="display-5 fw-bold">Search Spotify</h1>
+      <p class="text-muted">Find artists, albums, and tracks across the Spotify catalog</p>
+    </header>
     
-    <div *ngIf="!spotifyService.isLoggedIn()" class="alert alert-warning">
-      You need to <a (click)="login()" href="javascript:void(0)">login with Spotify</a> to use the search feature.
+    <!-- Login Prompt -->
+    <div *ngIf="!spotifyService.isLoggedIn()" class="login-prompt p-5 text-center bg-light rounded shadow-sm">
+      <div class="mb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-spotify text-success" viewBox="0 0 16 16">
+          <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.669 11.538a.498.498 0 0 1-.686.165c-1.879-1.147-4.243-1.407-7.028-.77a.499.499 0 0 1-.222-.973c3.048-.696 5.662-.397 7.77.892a.5.5 0 0 1 .138.686m.979-2.178a.624.624 0 0 1-.858.205c-2.15-1.321-5.428-1.704-7.972-.932a.625.625 0 0 1-.362-1.194c2.905-.881 6.517-.454 8.986 1.063a.624.624 0 0 1 .206.858m.084-2.268C10.154 5.56 5.9 5.419 3.438 6.166a.748.748 0 1 1-.434-1.432c2.825-.857 7.523-.692 10.492 1.07a.747.747 0 1 1-.764 1.288"/>
+        </svg>
+      </div>
+      <h2 class="h4 mb-3">Connect with Spotify</h2>
+      <p class="text-muted mb-4">Sign in to search the Spotify catalog</p>
+      <button (click)="login()" class="btn btn-success btn-lg px-4 py-2">
+        <span class="me-2">Connect with Spotify</span>
+        <i class="bi bi-arrow-right"></i>
+      </button>
     </div>
-  
+
+    <!-- Search Interface (when logged in) -->
     <div *ngIf="spotifyService.isLoggedIn()">
-      <div class="mb-4">
-        <div class="input-group">
-          <input 
-            type="text" 
-            class="form-control" 
-            placeholder="Search for artists, albums, or tracks..." 
-            [(ngModel)]="searchQuery" 
-            (keyup.enter)="search()"
-          >
-          <button class="btn btn-success" type="button" (click)="search()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
-              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
-            </svg>
-            Search
-          </button>
-        </div>
-        
-        <div class="mt-2">
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="searchType" id="typeArtist" value="artist" [(ngModel)]="searchType" checked>
-            <label class="form-check-label" for="typeArtist">Artists</label>
+      <div class="search-card card shadow-sm mb-4 border-0">
+        <div class="card-body">
+          <!-- Search Input -->
+          <div class="search-input mb-3">
+            <div class="input-group">
+              <span class="input-group-text bg-light">
+                <i class="bi bi-search"></i>
+              </span>
+              <input 
+                type="text" 
+                class="form-control form-control-lg" 
+                placeholder="Search for artists, albums, or tracks..." 
+                [(ngModel)]="searchQuery" 
+                (keyup.enter)="search()"
+              >
+              <button class="btn btn-primary px-4" type="button" (click)="search()">
+                Search
+              </button>
+            </div>
           </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="searchType" id="typeAlbum" value="album" [(ngModel)]="searchType">
-            <label class="form-check-label" for="typeAlbum">Albums</label>
-          </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="searchType" id="typeTrack" value="track" [(ngModel)]="searchType">
-            <label class="form-check-label" for="typeTrack">Tracks</label>
+          
+          <!-- Search Type Selection -->
+          <div class="search-types">
+            <div class="btn-group w-100" role="group" aria-label="Search type">
+              <input type="radio" class="btn-check" name="searchType" id="typeArtist" value="artist" [(ngModel)]="searchType" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="typeArtist">
+                <i class="bi bi-person-circle me-1"></i>
+                Artists
+              </label>
+              
+              <input type="radio" class="btn-check" name="searchType" id="typeAlbum" value="album" [(ngModel)]="searchType" autocomplete="off">
+              <label class="btn btn-outline-primary" for="typeAlbum">
+                <i class="bi bi-disc me-1"></i>
+                Albums
+              </label>
+              
+              <input type="radio" class="btn-check" name="searchType" id="typeTrack" value="track" [(ngModel)]="searchType" autocomplete="off">
+              <label class="btn btn-outline-primary" for="typeTrack">
+                <i class="bi bi-music-note-beamed me-1"></i>
+                Tracks
+              </label>
+            </div>
           </div>
         </div>
       </div>
-  
-      <div *ngIf="loading" class="text-center my-5">
-        <div class="spinner-border text-success" role="status">
+
+      <!-- Loading State -->
+      <div *ngIf="loading" class="text-center p-5">
+        <div class="spinner-border text-success mb-3" role="status">
           <span class="visually-hidden">Loading...</span>
         </div>
+        <p class="text-muted">Searching Spotify...</p>
       </div>
-  
-      <div *ngIf="!loading && searchResults.length > 0" class="row">
-        <div *ngFor="let item of searchResults" class="col-five mb-4">
-          <div class="card h-100">
-            <img [src]="item.images && item.images[0]?.url || 'assets/no-image.jpg'" 
-              class="card-img-top" 
-              alt="{{ item.name }}"
-              (error)="handleImageError($event)">
+
+      <!-- Results Grid -->
+      <div *ngIf="!loading && searchResults.length > 0" class="search-results">
+        <h3 class="mb-3">Search Results for "{{ searchQuery }}"</h3>
+        
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-4">
+          <div *ngFor="let item of searchResults" class="col">
+            <div class="search-item-card card h-100 shadow-sm">
+              <!-- Item Image -->
+              <div class="card-img-container">
+                <img [src]="item.images && item.images[0]?.url || 
+                            (searchType === 'track' && item.album?.images[0]?.url) || 
+                            'assets/no-image.jpg'" 
+                    class="search-image" 
+                    alt="{{ item.name }}"
+                    (error)="handleImageError($event)">
+              </div>
+              
               <div class="card-body">
-              <h5 class="card-title">{{ item.name }}</h5>
-              <p *ngIf="searchType === 'artist'" class="card-text">
-                <span class="badge bg-secondary me-1" *ngFor="let genre of item.genres.slice(0, 3)">{{ genre }}</span>
-              </p>
-              <p *ngIf="searchType === 'album'" class="card-text">
-                {{ item.artists[0].name }}
-              </p>
-              <p *ngIf="searchType === 'track'" class="card-text">
-                {{ item.artists[0].name }} - {{ item.album.name }}
-              </p>
-            </div>
-            <div class="card-footer">
-              <a [href]="item.external_urls.spotify" target="_blank" class="btn btn-sm btn-outline-success">
-                Open in Spotify
-              </a>
+                <h5 class="card-title text-truncate fw-bold" title="{{ item.name }}">
+                  {{ item.name }}
+                </h5>
+                
+                <!-- Different card content based on search type -->
+                <div *ngIf="searchType === 'artist'" class="card-text small">
+                  <div class="mb-2 d-flex flex-wrap gap-1">
+                    <span class="badge bg-secondary" 
+                          *ngFor="let genre of item.genres?.slice(0, 3)">
+                      {{ genre }}
+                    </span>
+                    <span *ngIf="item.genres?.length === 0" class="text-muted fst-italic">
+                      No genres listed
+                    </span>
+                  </div>
+                  <div *ngIf="item.followers?.total !== undefined" class="text-muted">
+                    <i class="bi bi-people me-1"></i>
+                    {{ item.followers.total | number }} followers
+                  </div>
+                </div>
+                
+                <div *ngIf="searchType === 'album'" class="card-text small">
+                  <div class="text-truncate" title="{{ item.artists[0]?.name }}">
+                    <i class="bi bi-person me-1"></i>
+                    {{ item.artists[0]?.name }}
+                  </div>
+                  <div *ngIf="item.release_date" class="text-muted">
+                    <i class="bi bi-calendar-event me-1"></i>
+                    Released: {{ item.release_date | date }}
+                  </div>
+                </div>
+                
+                <div *ngIf="searchType === 'track'" class="card-text small">
+                  <div class="text-truncate" title="{{ item.artists[0]?.name }}">
+                    <i class="bi bi-person me-1"></i>
+                    {{ item.artists[0]?.name }}
+                  </div>
+                  <div class="text-truncate text-muted" title="{{ item.album?.name }}">
+                    <i class="bi bi-disc me-1"></i>
+                    {{ item.album?.name }}
+                  </div>
+                  <div *ngIf="item.duration_ms" class="text-muted">
+                    <i class="bi bi-clock me-1"></i>
+                    {{ item.duration_ms | date:'m:ss' }}
+                  </div>
+                </div>
+              </div>
+              
+              <div class="card-footer bg-white border-top-0 pb-3">
+                <a [href]="item.external_urls?.spotify" 
+                   target="_blank" 
+                   class="btn btn-sm btn-outline-success w-100">
+                  <i class="bi bi-spotify me-1"></i>
+                  Open in Spotify
+                </a>
+              </div>
             </div>
           </div>
         </div>
       </div>
-  
-      <div *ngIf="!loading && searchResults.length === 0 && searched" class="alert alert-info">
-        No results found for "{{ searchQuery }}". Try another search term.
+
+      <!-- Empty Results -->
+      <div *ngIf="!loading && searchResults.length === 0 && searched" 
+           class="alert alert-light text-center my-4">
+        <i class="bi bi-search mb-2 fs-4"></i>
+        <p>No results found for "{{ searchQuery }}".</p>
+        <p class="small text-muted">Try another search term or different content type.</p>
       </div>
     </div>
   </div>
+</div>
