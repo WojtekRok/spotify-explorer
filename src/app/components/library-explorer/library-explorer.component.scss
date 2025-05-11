@@ -1,81 +1,196 @@
-.list-group-item {
-    // Ensure items have enough vertical space if content wraps
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-    
-    // Styles FOR ELEMENTS INSIDE .list-group-item
-    
-    img.library-image, // Target the specific image using its class
-    img.me-3 { // Or target based on existing Bootstrap classes if consistent
-      width: 100px;  
-      height: 100px;
-      object-fit: cover; 
-    }
-  
-    // Target the container for the action buttons
-    .action-buttons {
-       display: flex;
-       flex-direction: row; // <--- Explicitly set to row
-       align-items: center; // Keep items vertically centered
-       gap: 0.35rem; 
-    }   
-    
-     // Ensure text truncation works well with larger image
-     .text-truncate-container {
-        min-width: 0; // Important for flexbox truncation
-     }
-  
-  } // End of .list-group-item styles
-  
-  // Search results specific styles (if needed, keep separate)
-  .search-results {
-     .list-group-item {
-         // Maybe different padding/image sizes for search results?
-         padding: 0.5rem 0.5rem; // Example smaller padding
-  
-         img {
-             width: 35px;
-             height: 35px;
-         }
-         .btn { // Smaller buttons in search results
-             padding: 0.1rem 0.4rem;
-             font-size: 0.8em;
-         }
-     }
-  }
+/* src/app/features/library-explorer/library-explorer.component.scss */
 
-  .search-input-padding {
-    // Adjust padding-right to accommodate the button width + desired spacing
-    padding-right: 2.5rem; // Example value, adjust as needed
-  }
-  // Styling for the inline clear button ('X')
-.btn-close-input {
-    // Positioning
-    position: absolute;
-    top: 50%;
-    right: 0.75rem; // Adjust horizontal position
-    transform: translateY(-50%); // Vertical centering
-    z-index: 5; // Ensure it's above the input field
+// Variables
+$primary-color: var(--bs-primary, #0d6efd);
+$success-color: var(--bs-success, #198754);
+$border-radius: 10px;
+$transition-speed: 0.25s;
+
+.library-explorer {
+  max-width: 1100px;
+  margin: 0 auto;
   
-    // Appearance (make it subtle)
-    padding: 0.25rem 0.5rem;
-    line-height: 1;
-    background-color: transparent;
-    border: none;
-    color: #6c757d; // Default secondary text color
+  h1 {
+    color: #333;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(45deg, $primary-color, $success-color);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+// Card Styling
+.search-card, 
+.content-card {
+  border-radius: $border-radius;
+  overflow: hidden;
+  transition: all $transition-speed ease;
+  
+  .card-header {
+    padding: 1.5rem 1.5rem 0.75rem;
+  }
+  
+  .card-body {
+    padding: 1.5rem;
+  }
+  
+  &:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+  }
+}
+
+// List Items Styling
+.list-group-item {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  transition: background-color $transition-speed ease;
+  
+  &.hover-bg-light:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+  
+  img.library-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .action-buttons {
     opacity: 0.8;
-    cursor: pointer;
+    transition: opacity $transition-speed ease;
+  }
   
-    &:hover,
-    &:focus {
-      opacity: 1;
-      color: #000; // Darken on hover/focus
-      box-shadow: none; // Remove default button focus shadow if needed
-    }
+  &:hover .action-buttons {
+    opacity: 1;
+  }
   
-    // Adjust SVG size if necessary
-    svg {
-      width: 1.2em;  // Make icon slightly smaller
-      height: 1.2em;
+  // For mobile displays
+  @media (max-width: 576px) {
+    img.library-image {
+      width: 50px;
+      height: 50px;
     }
   }
+}
+
+// Search Results Styling
+.search-results {
+  .list-group-item {
+    padding: 0.5rem 0.75rem;
+    border-left: none;
+    border-right: none;
+    
+    img {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+    }
+    
+    // Style for items that are already in library
+    &.already-in-library {
+      background-color: rgba(0, 0, 0, 0.03);
+      
+      .fw-bold {
+        &::after {
+          content: "•";
+          color: var(--bs-success, #198754);
+          margin-left: 5px;
+          font-size: 20px;
+          vertical-align: middle;
+        }
+      }
+      
+      // Style for the secondary button
+      .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        color: white;
+        opacity: 0.9;
+        
+        &:hover {
+          opacity: 1;
+          cursor: default;
+        }
+        
+        &:disabled {
+          opacity: 0.9;
+          color: white;
+        }
+      }
+    }
+  }
+}
+
+// Search Input Styling
+.search-input-padding {
+  padding-right: 2.5rem;
+}
+
+.btn-close-input {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  z-index: 5;
+  
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
+  background-color: transparent;
+  border: none;
+  color: #6c757d;
+  opacity: 0.8;
+  cursor: pointer;
+  
+  &:hover,
+  &:focus {
+    opacity: 1;
+    color: #000;
+    box-shadow: none;
+  }
+  
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+// Nav Tabs Styling
+.nav-tabs {
+  border-bottom: 1px solid #dee2e6;
+  
+  .nav-item {
+    margin-bottom: -1px;
+    
+    .nav-link {
+      transition: all $transition-speed ease;
+      border: 1px solid transparent;
+      border-top-left-radius: $border-radius;
+      border-top-right-radius: $border-radius;
+      padding: 0.75rem 1.25rem;
+      
+      &:hover:not(.active) {
+        border-color: #e9ecef #e9ecef #dee2e6;
+        background-color: rgba(0, 0, 0, 0.02);
+      }
+      
+      &.active {
+        color: $primary-color;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+// Login Prompt
+.login-prompt {
+  border-radius: $border-radius;
+  transition: all $transition-speed ease;
+  
+  &:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  }
+}
