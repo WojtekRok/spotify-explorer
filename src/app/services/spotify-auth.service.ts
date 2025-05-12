@@ -1,5 +1,4 @@
-// spotify-auth.service.ts
-// Handles authentication with Spotify API
+// Update to spotify-auth.service.ts to fix SSR issues
 
 import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
@@ -29,6 +28,9 @@ export class SpotifyAuthService {
   private _isLoggedIn$ = new BehaviorSubject<boolean>(false);
   public isLoggedIn$ = this._isLoggedIn$.asObservable();
   
+  // SSR detection
+  private readonly isBrowser: boolean;
+  
   // Scopes required by the app
   private readonly scopes = [
     'user-read-private', 'user-read-email', 'user-top-read',
@@ -43,14 +45,18 @@ export class SpotifyAuthService {
     private storageService: SpotifyStorageService,
     private logger: LoggerService
   ) {
-    // Initialize the token state from storage on service creation
-    if (this.storageService.isBrowser) {
+    this.isBrowser = isPlatformBrowser(platformId);
+    
+    // Only initialize token state in browser environment
+    if (this.isBrowser) {
       this.refreshFromStorage();
     }
   }
 
   // Refresh token state from storage
   private refreshFromStorage(): void {
+    if (!this.isBrowser) return;
+    
     const token = this.storageService.getToken();
     if (token && !this.storageService.isTokenExpired()) {
       this._token$.next(token);
@@ -68,7 +74,7 @@ export class SpotifyAuthService {
 
   // PKCE flow methods
   private generateRandomString(length: number): string {
-    if (!this.storageService.isBrowser) return '';    
+    if (!this.isBrowser) return '';    
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     const values = crypto.getRandomValues(new Uint8Array(length));
     return Array.from(values)
@@ -77,7 +83,7 @@ export class SpotifyAuthService {
   }
 
   private async generateCodeChallenge(codeVerifier: string): Promise<string> {
-    if (!this.storageService.isBrowser) return '';
+    if (!this.isBrowser) return '';
     
     const encoder = new TextEncoder();
     const data = encoder.encode(codeVerifier);
@@ -94,7 +100,10 @@ export class SpotifyAuthService {
    * @param returnPath Optional path to return to after auth
    */
   public authorize(returnPath: string = '/'): void {
-    if (!this.storageService.isBrowser) return;
+    if (!this.isBrowser) {
+      this.logger.log('Authorize: Skipping - not in browser environment');
+      return;
+    }
     
     try {
       // Store the return path
@@ -135,16 +144,17 @@ export class SpotifyAuthService {
   }
 
   /**
- * Handle the callback from Spotify auth
- * @returns Promise<boolean> Success of the token exchange
- */
+   * Handle the callback from Spotify auth
+   * @returns Promise<boolean> Success of the token exchange
+   */
   async handleCallback(): Promise<boolean> {
-    this.logger.log("HandleCallback: Entered handleCallback method.");
-    
-    if (!this.storageService.isBrowser) {
-      this.logger.warn('HandleCallback: Skipping: Not in browser environment.');
+    // Early exit for server-side rendering - return neutral value instead of error
+    if (!this.isBrowser) {
+      // Don't log a warning, just quietly return without an error
       return false;
     }
+    
+    this.logger.log("HandleCallback: Processing authorization callback");
     
     // 1. Get params from URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -239,122 +249,122 @@ export class SpotifyAuthService {
     }
   }
 
- /**
- * Refresh the access token using refresh token
- */
-public async refreshAccessToken(): Promise<boolean> {
-  if (!this.storageService.isBrowser) return false;
-  
-  const refreshToken = this.storageService.getRefreshToken();
-  if (!refreshToken) {
-    this.logger.warn("RefreshToken: No refresh token available.");
-    return false;
-  }
-  
-  try {
-    this.logger.log("RefreshToken: Attempting to refresh access token...");
+  /**
+   * Refresh the access token using refresh token
+   */
+  public async refreshAccessToken(): Promise<boolean> {
+    if (!this.isBrowser) return false;
     
-    const response = await fetch(this.tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({
-        client_id: this.clientId,
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken
-      }).toString()
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      this.logger.error(`RefreshToken: Refresh token request failed: ${response.status}`, errorText);
-      
-      // Only clear refresh token if it's a 400 error (invalid token)
-      if (response.status === 400) {
-        this.logger.warn("RefreshToken: Invalid refresh token, clearing auth data.");
-        this.storageService.clearAuthStorage();
-        this._token$.next(null);
-        this._isLoggedIn$.next(false);
-      }
-      
+    const refreshToken = this.storageService.getRefreshToken();
+    if (!refreshToken) {
+      this.logger.warn("RefreshToken: No refresh token available.");
       return false;
     }
     
-    const json: SpotifyTokenResponse = await response.json();
-    
-    if (json.access_token) {
-      // Update token in storage
-      this.storageService.setToken(json.access_token);
-      this.storageService.setTokenExpiration(json.expires_in);
+    try {
+      this.logger.log("RefreshToken: Attempting to refresh access token...");
       
-      // Update token in service state
-      this._token$.next(json.access_token);
-      this._isLoggedIn$.next(true);
+      const response = await fetch(this.tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          client_id: this.clientId,
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken
+        }).toString()
+      });
       
-      // Store new refresh token if provided
-      if (json.refresh_token) {
-        this.storageService.setRefreshToken(json.refresh_token);
-        this.logger.log("RefreshToken: New refresh token stored.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.error(`RefreshToken: Refresh token request failed: ${response.status}`, errorText);
+        
+        // Only clear refresh token if it's a 400 error (invalid token)
+        if (response.status === 400) {
+          this.logger.warn("RefreshToken: Invalid refresh token, clearing auth data.");
+          this.storageService.clearAuthStorage();
+          this._token$.next(null);
+          this._isLoggedIn$.next(false);
+        }
+        
+        return false;
       }
       
-      this.logger.log("RefreshToken: Access token refreshed successfully.");
-      return true;
-    } else {
-      this.logger.error("RefreshToken: Response missing access_token.");
+      const json: SpotifyTokenResponse = await response.json();
+      
+      if (json.access_token) {
+        // Update token in storage
+        this.storageService.setToken(json.access_token);
+        this.storageService.setTokenExpiration(json.expires_in);
+        
+        // Update token in service state
+        this._token$.next(json.access_token);
+        this._isLoggedIn$.next(true);
+        
+        // Store new refresh token if provided
+        if (json.refresh_token) {
+          this.storageService.setRefreshToken(json.refresh_token);
+          this.logger.log("RefreshToken: New refresh token stored.");
+        }
+        
+        this.logger.log("RefreshToken: Access token refreshed successfully.");
+        return true;
+      } else {
+        this.logger.error("RefreshToken: Response missing access_token.");
+        return false;
+      }
+    } catch (error) {
+      this.logger.error("RefreshToken: Error during token refresh:", error);
       return false;
     }
-  } catch (error) {
-    this.logger.error("RefreshToken: Error during token refresh:", error);
-    return false;
   }
-}
 
   /**
- * Ensure the token is valid, refreshing if needed
- * @returns Promise<string | null> Valid token or null if unavailable
- */
-public async ensureValidToken(): Promise<string | null> {
-  if (!this.storageService.isBrowser) return null;
-  
-  // Check if we have a token in memory first
-  let currentToken = this._token$.value;
-  
-  // If not in memory, try to get from storage
-  if (!currentToken) {
-    currentToken = this.storageService.getToken();
+   * Ensure the token is valid, refreshing if needed
+   * @returns Promise<string | null> Valid token or null if unavailable
+   */
+  public async ensureValidToken(): Promise<string | null> {
+    if (!this.isBrowser) return null;
     
-    // If found in storage and valid, update memory state
-    if (currentToken && !this.storageService.isTokenExpired()) {
-      this._token$.next(currentToken);
-      this._isLoggedIn$.next(true);
-    }
-  }
-  
-  // If token exists but is expired, try to refresh
-  if ((currentToken && this.storageService.isTokenExpired()) || !currentToken) {
-    this.logger.log("Token missing or expired, attempting refresh...");
-    const refreshSuccess = await this.refreshAccessToken();
+    // Check if we have a token in memory first
+    let currentToken = this._token$.value;
     
-    if (!refreshSuccess) {
-      this.logger.warn("No valid token after refresh attempt.");
-      this._token$.next(null);
-      this._isLoggedIn$.next(false);
-      return null;
+    // If not in memory, try to get from storage
+    if (!currentToken) {
+      currentToken = this.storageService.getToken();
+      
+      // If found in storage and valid, update memory state
+      if (currentToken && !this.storageService.isTokenExpired()) {
+        this._token$.next(currentToken);
+        this._isLoggedIn$.next(true);
+      }
     }
     
-    // Get the new token after refresh
-    return this._token$.value;
+    // If token exists but is expired, try to refresh
+    if ((currentToken && this.storageService.isTokenExpired()) || !currentToken) {
+      this.logger.log("Token missing or expired, attempting refresh...");
+      const refreshSuccess = await this.refreshAccessToken();
+      
+      if (!refreshSuccess) {
+        this.logger.warn("No valid token after refresh attempt.");
+        this._token$.next(null);
+        this._isLoggedIn$.next(false);
+        return null;
+      }
+      
+      // Get the new token after refresh
+      return this._token$.value;
+    }
+    
+    return currentToken;
   }
-  
-  return currentToken;
-}
 
   /**
    * Check if user is currently logged in
    */
   public isLoggedIn(): boolean {
-    if (!this.storageService.isBrowser) return false;
+    if (!this.isBrowser) return false;
     
     // First check if we have an active token in memory
     if (this._token$.value) {
@@ -374,7 +384,7 @@ public async ensureValidToken(): Promise<string | null> {
    * Log out user by clearing tokens
    */
   public logout(): void {
-    if (!this.storageService.isBrowser) return;
+    if (!this.isBrowser) return;
     
     // Update service state
     this._token$.next(null);
