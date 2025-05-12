@@ -3,18 +3,22 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
+
+// Import from barrel file
 import {
-    SpotifyService,
-    SpotifyArtist,
-    SpotifyPlaylist,
-    SpotifyAlbum,
-    SpotifySavedAlbumObject
-} from '../../services/spotify.service'; 
+  SpotifyService,
+  SpotifyArtist,
+  SpotifyPlaylist,
+  SpotifyAlbum,
+  SpotifySavedAlbumObject,
+  LoggerService
+} from '../../services';
 
 interface FeedbackMessage {
   type: 'success' | 'error' | 'warning' | 'info';
   text: string;
 }
+
 type LibraryTab = 'artists' | 'albums' | 'playlists';
 type SortDirection = 'asc' | 'desc';
 
@@ -22,6 +26,13 @@ type PlaylistSortKey = 'name' | 'owner' | 'tracks';
 type ArtistSortKey = 'name' | 'popularity' | 'followers';
 type AlbumSortKey = 'albumName' | 'artistName' | 'releaseDate' | 'popularity' | 'addedDate';
 
+/**
+ * Component for exploring and managing the user's Spotify library
+ * - View followed artists
+ * - View saved albums
+ * - View playlists
+ * - Search and add new items
+ */
 @Component({
   selector: 'app-library-explorer',
   standalone: true,
@@ -30,141 +41,172 @@ type AlbumSortKey = 'albumName' | 'artistName' | 'releaseDate' | 'popularity' | 
   styleUrls: ['./library-explorer.component.scss']
 })
 export class LibraryExplorerComponent implements OnInit, OnDestroy {
-
-  // State
+  // --- Tab State ---
   activeTab: LibraryTab = 'playlists'; // Default tab
-  isLoggedIn: boolean = false;
+  
+  // --- Auth State ---
+  isLoggedIn = false;
   spotifyUserId: string | null = null;
-
-  // Data - Full lists from API
+  
+  // --- Data - Full lists from API ---
   allFollowedArtists: SpotifyArtist[] = [];
-  allSavedAlbums: SpotifySavedAlbumObject[] = []; // Use specific type
+  allSavedAlbums: SpotifySavedAlbumObject[] = [];
   allUserPlaylists: SpotifyPlaylist[] = [];
 
-  // Data - Filtered lists for display
+  // --- Data - Filtered lists for display ---
   filteredArtists: SpotifyArtist[] = [];
   filteredAlbums: SpotifySavedAlbumObject[] = [];
   filteredPlaylists: SpotifyPlaylist[] = [];
 
-  // Filter Inputs
-  artistFilter: string = '';
-  albumFilter: string = '';
-  playlistFilter: string = '';
+  // --- Text Filter Inputs ---
+  artistFilter = '';
+  albumFilter = '';
+  playlistFilter = '';
 
-  // Loading States
-  loadingArtists: boolean = false;
-  loadingAlbums: boolean = false;
-  loadingPlaylists: boolean = false;
+  // --- Loading States ---
+  loadingArtists = false;
+  loadingAlbums = false;
+  loadingPlaylists = false;
+  loadingProfile = false;
+  
+  // --- Error State ---
+  error: string | null = null;
+  
+  // --- Feedback Messages ---
   feedbackMessage: FeedbackMessage | null = null;
   private feedbackTimeout: any = null;
 
   // --- Search State ---
-  showSearchResults: boolean = false;
-  searchQuery: string = ''; 
+  showSearchResults = false;
+  searchQuery = ''; 
   searchResults: any[] = []; // Store combined results with type info
-  isSearching: boolean = false;
-  searchError: string | null = null; // Keep track of added items to update button state
-  addedItemIds = new Set<string>(); 
+  isSearching = false;
+  searchError: string | null = null;
+  addedItemIds = new Set<string>(); // Track added items to update button state
+  
   // --- Debounce Search Input ---
   private searchQueryChanged = new Subject<string>();
   private searchSubscription: Subscription | null = null;
-
+  
   // --- Sorting State ---
-  playlistSortKey: PlaylistSortKey = 'name'; // Default sort
+  playlistSortKey: PlaylistSortKey = 'name';
   playlistSortDirection: SortDirection = 'asc';
   
-  artistSortKey: ArtistSortKey = 'name'; // Default sort
+  artistSortKey: ArtistSortKey = 'name';
   artistSortDirection: SortDirection = 'asc';
   
   albumSortKey: AlbumSortKey = 'addedDate'; // Default sort (newest first)
   albumSortDirection: SortDirection = 'desc';
-
-  loadingProfile: boolean = false;
-  error?: string | null;
+  
+  // For cleanup
+  private destroy$ = new Subject<void>();
 
   constructor(
     public spotifyService: SpotifyService,
+    private logger: LoggerService,
     private cdRef: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    this.isLoggedIn = this.spotifyService.isLoggedIn();
+    // Subscribe to auth state observable
+    this.spotifyService.isLoggedIn$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(loggedIn => {
+        this.isLoggedIn = loggedIn;
         if (this.isLoggedIn) {
-            // Call the correct initial data loading method
-            this.loadInitialData(); 
+          this.loadInitialData();
         }
-      //this.setupFiltering(); // For library filtering
-      this.setupSearchDebounce();
+      });
+      
+    this.setupSearchDebounce();
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    
     this.searchSubscription?.unsubscribe();
-    if (this.feedbackTimeout) { clearTimeout(this.feedbackTimeout); }
+    
+    if (this.feedbackTimeout) {
+      clearTimeout(this.feedbackTimeout);
+    }
   }
 
+  /**
+   * Load initial data for the library
+   */
   loadInitialData(): void {
-    console.log("[DEBUG] loadInitialData called."); // Add this to confirm execution
-    this.loadUserProfile();     // <<< ENSURE THIS CALL IS PRESENT
-    this.loadArtists(); 
-    this.loadPlaylists(); 
+    this.logger.log("Loading initial library data");
+    this.loadUserProfile();
+    this.loadArtists();
+    this.loadPlaylists();
     this.loadAlbums();
   }
 
+  /**
+   * Load the user profile data
+   */
   async loadUserProfile(): Promise<void> {
-    this.loadingProfile = true; // Set loading true
+    this.loadingProfile = true;
     this.error = null;
     this.spotifyUserId = null; // Reset before fetching
-    console.log("[Component DEBUG] loadUserProfile started. loadingProfile=true");
+    
+    this.logger.log("Loading user profile data");
+    
     try {
       const profile = await this.spotifyService.getUserProfile();
-      console.log("[Component DEBUG] Profile data received in component:", JSON.stringify(profile)); 
+      
       if (profile && profile.id) {
-        this.spotifyUserId = profile.id; 
-        console.log('[Component DEBUG] SUCCESSFULLY assigned this.spotifyUserId =', this.spotifyUserId); // Verify assignment
+        this.spotifyUserId = profile.id;
+        this.logger.log(`User profile loaded, ID: ${this.spotifyUserId}`);
       } else {
-          console.error('[Component DEBUG] Profile data received, but ID property is missing or invalid.', profile);
-          this.handleError({ message: "User profile data invalid." }, "Could not load user profile ID.");
-          this.spotifyUserId = null; // Ensure it remains null on failure
+        this.logger.error("Profile data received, but ID property is missing or invalid");
+        this.handleError({ message: "User profile data invalid." }, "Could not load user profile ID.");
+        this.spotifyUserId = null;
       }
-    } catch (err: any) { 
-        this.handleError(err, "Could not load user profile."); 
-        this.spotifyUserId = null; // Ensure it's null on catch
-    }
-    finally {
-      this.loadingProfile = false; 
-      console.log('[Component DEBUG] loadUserProfile finally block. loadingProfile =', this.loadingProfile, 'spotifyUserId =', this.spotifyUserId); // Verify final state
-      this.cdRef.detectChanges(); // Trigger change detection
+    } catch (err: any) {
+      this.handleError(err, "Could not load user profile.");
+      this.spotifyUserId = null;
+    } finally {
+      this.loadingProfile = false;
+      this.cdRef.detectChanges();
     }
   }
 
-  // --- Setup Search Debounce ---
+  /**
+   * Setup debounce for search input
+   */
   setupSearchDebounce(): void {
     this.searchSubscription = this.searchQueryChanged.pipe(
-        debounceTime(400), // Wait for 400ms pause in typing
-        distinctUntilChanged() // Only emit if value has changed
+      debounceTime(400), // Wait for 400ms pause in typing
+      distinctUntilChanged() // Only emit if value has changed
     ).subscribe(query => {
-        // Perform search only if query is not empty after debounce
-        if (query.trim()) {
-            this.performSearch(query); // Pass the debounced query
-        } else {
-            // If query becomes empty, clear results
-            this.searchResults = [];
-            this.showSearchResults = false;
-            this.searchError = null;
-            this.cdRef.detectChanges();
-        }
+      // Perform search only if query is not empty after debounce
+      if (query.trim()) {
+        this.performSearch(query);
+      } else {
+        // If query becomes empty, clear results
+        this.searchResults = [];
+        this.showSearchResults = false;
+        this.searchError = null;
+        this.cdRef.detectChanges();
+      }
     });
   }
 
-  // Method bound to (ngModelChange) on the input
+  /**
+   * Handle search input changes
+   */
   onSearchQueryInput(): void {
     // Push the current value of searchQuery onto the Subject
     this.searchQueryChanged.next(this.searchQuery);
   }
 
-  // --- Tab Selection & Data Loading ---
+  /**
+   * Switch to a tab and load data if needed
+   */
   selectTab(tab: LibraryTab): void {
-    console.log(`Selecting tab: ${tab}`);
+    this.logger.log(`Selecting tab: ${tab}`);
     this.activeTab = tab;
     this.clearActionFeedback();
 
@@ -181,48 +223,79 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Load followed artists
+   */
   async loadArtists(): Promise<void> {
     if (this.loadingArtists) return;
-    this.loadingArtists = true; 
-    console.log("Loading followed artists...");
+    
+    this.loadingArtists = true;
+    this.logger.log("Loading followed artists...");
+    
     try {
       this.allFollowedArtists = await this.spotifyService.getAllFollowedArtists();
       this.applyFilterAndSort(); // Apply filter after loading
-      console.log(`Loaded ${this.allFollowedArtists.length} artists.`);
-    } catch (err: any) { this.handleError(err, "Failed to load followed artists."); }
-    finally { this.loadingArtists = false; this.cdRef.detectChanges(); }
+      this.logger.log(`Loaded ${this.allFollowedArtists.length} artists`);
+    } catch (err: any) {
+      this.handleError(err, "Failed to load followed artists.");
+    } finally {
+      this.loadingArtists = false;
+      this.cdRef.detectChanges();
+    }
   }
 
+  /**
+   * Load saved albums
+   */
   async loadAlbums(): Promise<void> {
     if (this.loadingAlbums) return;
+    
     this.loadingAlbums = true;
-    console.log("Loading saved albums...");
+    this.logger.log("Loading saved albums...");
+    
     try {
       this.allSavedAlbums = await this.spotifyService.getAllSavedAlbums();
       this.applyFilterAndSort();
-      console.log(`Loaded ${this.allSavedAlbums.length} albums.`);
-    } catch (err: any) { this.handleError(err, "Failed to load saved albums."); }
-     finally { this.loadingAlbums = false; this.cdRef.detectChanges(); }
+      this.logger.log(`Loaded ${this.allSavedAlbums.length} albums`);
+    } catch (err: any) {
+      this.handleError(err, "Failed to load saved albums.");
+    } finally {
+      this.loadingAlbums = false;
+      this.cdRef.detectChanges();
+    }
   }
 
+  /**
+   * Load user playlists
+   */
   async loadPlaylists(): Promise<void> {
     if (this.loadingPlaylists) return;
+    
     this.loadingPlaylists = true;
-    console.log("Loading user playlists...");
+    this.logger.log("Loading user playlists...");
+    
     try {
       const playlists = await this.spotifyService.getAllUserPlaylists();
       this.allUserPlaylists = playlists.filter(p => p.tracks?.total > 0); // Keep non-empty filter
       this.applyFilterAndSort();
-       console.log(`Loaded ${this.allUserPlaylists.length} non-empty playlists.`);
-    } catch (err: any) { this.handleError(err, "Failed to load user playlists."); }
-     finally { this.loadingPlaylists = false; this.cdRef.detectChanges(); }
+      this.logger.log(`Loaded ${this.allUserPlaylists.length} non-empty playlists`);
+    } catch (err: any) {
+      this.handleError(err, "Failed to load user playlists.");
+    } finally {
+      this.loadingPlaylists = false;
+      this.cdRef.detectChanges();
+    }
   }
- 
-  private showFeedback(type: FeedbackMessage['type'], text: string, durationMs: number = 4000): void {
-    console.log(`Feedback (${type}): ${text}`);
+
+  /**
+   * Show a feedback message to the user
+   */
+  private showFeedback(type: FeedbackMessage['type'], text: string, durationMs = 4000): void {
+    this.logger.log(`Feedback (${type}): ${text}`);
+    
     // Clear previous timeout if one exists
     if (this.feedbackTimeout) {
-        clearTimeout(this.feedbackTimeout);
+      clearTimeout(this.feedbackTimeout);
     }
     
     this.feedbackMessage = { type, text };
@@ -230,123 +303,152 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
 
     // Set new timeout to clear the message
     this.feedbackTimeout = setTimeout(() => {
-        this.feedbackMessage = null;
-        this.cdRef.detectChanges(); // Ensure message disappears
+      this.feedbackMessage = null;
+      this.cdRef.detectChanges(); // Ensure message disappears
     }, durationMs);
   }
 
- 
- // --- Helper to clear messages ---
+  /**
+   * Clear feedback messages
+   */
   clearActionFeedback(): void {
     if (this.feedbackTimeout) {
-        clearTimeout(this.feedbackTimeout);
+      clearTimeout(this.feedbackTimeout);
     }
     this.feedbackMessage = null;
   }
-  // --- Library Modification Actions ---
+
+  /**
+   * Unfollow an artist
+   */
   async removeArtist(artist: SpotifyArtist, event: MouseEvent): Promise<void> {
-    event.stopPropagation(); 
-    console.log(`Attempting to unfollow artist: ${artist.id} - ${artist.name}`);
+    event.stopPropagation();
+    this.logger.log(`Attempting to unfollow artist: ${artist.id} - ${artist.name}`);
     this.clearActionFeedback(); // Clear previous messages
-    try { 
-        await this.spotifyService.unfollowArtist(artist.id);
-        // Update local state
-        this.allFollowedArtists = this.allFollowedArtists.filter(a => a.id !== artist.id);
-        this.addedItemIds.delete(artist.id); // Update search button state
-        this.applyFilterAndSort(); 
-        // Show success message
-        this.showFeedback('warning', `Unfollowed artist "${artist.name}".`);
-        this.cdRef.detectChanges();
-    } 
-    catch (err: any) { 
-        this.handleError(err, `Failed to unfollow artist "${artist.name}".`); // handleError sets generalError
+    
+    try {
+      await this.spotifyService.unfollowArtist(artist.id);
+      
+      // Update local state
+      this.allFollowedArtists = this.allFollowedArtists.filter(a => a.id !== artist.id);
+      this.addedItemIds.delete(artist.id); // Update search button state
+      this.applyFilterAndSort();
+      
+      // Show success message
+      this.showFeedback('warning', `Unfollowed artist "${artist.name}".`);
+      this.cdRef.detectChanges();
+    } catch (err: any) {
+      this.handleError(err, `Failed to unfollow artist "${artist.name}".`);
     }
   }
 
+  /**
+   * Remove an album from library
+   */
   async removeAlbum(item: SpotifySavedAlbumObject, event: MouseEvent): Promise<void> {
     event.stopPropagation();
-    const albumName = item.album.name; // Get name before potential removal
+    const albumName = item.album.name;
     const albumId = item.album.id;
-    console.log(`Attempting to unsave album: ${albumId} - ${albumName}`);
+    
+    this.logger.log(`Attempting to unsave album: ${albumId} - ${albumName}`);
     this.clearActionFeedback();
-    try { 
-        await this.spotifyService.unsaveAlbum(albumId);
-         // Update local state
-        this.allSavedAlbums = this.allSavedAlbums.filter(i => i.album.id !== albumId);
-        this.addedItemIds.delete(albumId); // Update search button state
-        this.applyFilterAndSort(); 
-         // Show success message
-         this.showFeedback('warning', `Unsaved album "${albumName}".`);
-        this.cdRef.detectChanges();
-    } 
-    catch (err: any) { 
-        this.handleError(err, `Failed to unsave album "${albumName}".`); 
+    
+    try {
+      await this.spotifyService.unsaveAlbum(albumId);
+      
+      // Update local state
+      this.allSavedAlbums = this.allSavedAlbums.filter(i => i.album.id !== albumId);
+      this.addedItemIds.delete(albumId); // Update search button state
+      this.applyFilterAndSort();
+      
+      // Show success message
+      this.showFeedback('warning', `Unsaved album "${albumName}".`);
+      this.cdRef.detectChanges();
+    } catch (err: any) {
+      this.handleError(err, `Failed to unsave album "${albumName}".`);
     }
   }
 
+  /**
+   * Unfollow a playlist (or show message if owned)
+   */
   async removePlaylist(playlist: SpotifyPlaylist, event: MouseEvent): Promise<void> {
-    event.stopPropagation(); 
+    event.stopPropagation();
     this.clearActionFeedback();
+    
     // 1. Check if User ID is loaded
     if (!this.spotifyUserId) {
-        this.handleError({ message: "User ID not loaded." }, "Cannot determine playlist ownership yet.");
-        return; 
+      this.handleError({ message: "User ID not loaded." }, "Cannot determine playlist ownership yet.");
+      return;
     }
+    
     // 2. Determine Ownership
     const isOwner = playlist.owner?.id === this.spotifyUserId;
+    
     // 3. Handle Owned Playlist Case
     if (isOwner) {
-        const ownedMessage = `You own "${playlist.name}" and cannot unfollow/delete it here. Please manage it directly in Spotify.`;
-        console.warn(ownedMessage);
-        this.showFeedback('info', ownedMessage, 7000);        
-        return; // Stop further execution
-    }     
-    // 4. Handle Followed Playlist Case (This code only runs if NOT the owner)    
-    console.log(`Attempting to unfollow playlist: ${playlist.id}`);
+      const ownedMessage = `You own "${playlist.name}" and cannot unfollow/delete it here. Please manage it directly in Spotify.`;
+      this.logger.warn(ownedMessage);
+      this.showFeedback('info', ownedMessage, 7000);
+      return;
+    }
+    
+    // 4. Handle Followed Playlist Case (This code only runs if NOT the owner)
+    this.logger.log(`Attempting to unfollow playlist: ${playlist.id}`);
+    
     try {
-        await this.spotifyService.unfollowPlaylist(playlist.id);
-        // Update local state
-        this.allUserPlaylists = this.allUserPlaylists.filter(p => p.id !== playlist.id);
-        this.addedItemIds.delete(playlist.id); 
-        this.applyFilterAndSort(); 
-        this.showFeedback('warning', `Unfollowed playlist "${playlist.name}".`);
-        this.cdRef.detectChanges();
-    } catch (err: any) { 
-        this.handleError(err, `Failed to unfollow playlist "${playlist.name}".`); 
-    }    
-  }
-
-  getSearchPlaceholder(): string {
-    switch(this.activeTab) {
-        case 'artists': return 'Search Spotify for artists to follow...';
-        case 'albums': return 'Search Spotify for albums to save...';
-        case 'playlists': return 'Search Spotify for playlists to follow...';
-        default: return 'Search Spotify...';
+      await this.spotifyService.unfollowPlaylist(playlist.id);
+      
+      // Update local state
+      this.allUserPlaylists = this.allUserPlaylists.filter(p => p.id !== playlist.id);
+      this.addedItemIds.delete(playlist.id);
+      this.applyFilterAndSort();
+      
+      this.showFeedback('warning', `Unfollowed playlist "${playlist.name}".`);
+      this.cdRef.detectChanges();
+    } catch (err: any) {
+      this.handleError(err, `Failed to unfollow playlist "${playlist.name}".`);
     }
   }
-  
+
+  /**
+   * Get search placeholder text based on active tab
+   */
+  getSearchPlaceholder(): string {
+    switch (this.activeTab) {
+      case 'artists': return 'Search Spotify for artists to follow...';
+      case 'albums': return 'Search Spotify for albums to save...';
+      case 'playlists': return 'Search Spotify for playlists to follow...';
+      default: return 'Search Spotify...';
+    }
+  }
+
+  /**
+   * Perform search against Spotify API
+   */
   async performSearch(debouncedQuery: string): Promise<void> {
     if (!debouncedQuery) {
       this.searchResults = [];
       this.showSearchResults = false;
       return;
-    }  
+    }
+    
     this.isSearching = true;
     this.searchError = null;
     this.searchResults = [];
     this.showSearchResults = true;
-    this.clearActionFeedback(); 
+    this.clearActionFeedback();
 
     const searchTypeMap: Record<string, 'artist' | 'album' | 'playlist'> = {
       artists: 'artist',
       albums: 'album',
       playlists: 'playlist',
-    }; 
+    };
 
     const apiSearchType = searchTypeMap[this.activeTab];
-  
+
     if (!apiSearchType) {
-      console.error('Invalid active tab for search:', this.activeTab);
+      this.logger.error('Invalid active tab for search:', this.activeTab);
       this.handleError(
         { message: 'Invalid search category selected.' },
         'Internal Search Error'
@@ -354,11 +456,14 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
       this.isSearching = false;
       this.cdRef.detectChanges();
       return;
-    }  
-    console.log(`Searching Spotify for type '${apiSearchType}': ${debouncedQuery}`);  
+    }
+    
+    this.logger.log(`Searching Spotify for type '${apiSearchType}': ${debouncedQuery}`);
+    
     try {
       const data = await this.spotifyService.search(debouncedQuery, apiSearchType, 50);
-      let rawResults: any[] = []; 
+      let rawResults: any[] = [];
+      
       switch (apiSearchType) {
         case 'artist':
           rawResults = data.artists?.items || [];
@@ -368,16 +473,18 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
           break;
         case 'playlist':
           rawResults = data.playlists?.items || [];
+          // Filter out incomplete/invalid results
           const originalCount = rawResults.length;
-          rawResults = rawResults.filter(item => 
-              item && 
-              item.id && 
-              item.name && // Ensure name exists
-              item.external_urls?.spotify // Ensure Spotify link exists
+          rawResults = rawResults.filter(item =>
+            item &&
+            item.id &&
+            item.name && // Ensure name exists
+            item.external_urls?.spotify // Ensure Spotify link exists
           );
-          console.log(`Filtered incomplete playlists: Kept ${rawResults.length} out of ${originalCount}`);
+          this.logger.log(`Filtered incomplete playlists: Kept ${rawResults.length} out of ${originalCount}`);
           break;
-      }  
+      }
+      
       this.searchResults = rawResults.map(item => {
         // Check if the item is already in the user's library
         let isInLibrary = false;
@@ -401,111 +508,151 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
           isInLibrary: isInLibrary
         };
       });
-      console.log(`Found ${this.searchResults.length} results.`);
+      
+      this.logger.log(`Found ${this.searchResults.length} results`);
+      
       if (this.searchResults.length === 0) {
-        this.searchError = `No displayable results found for "${debouncedQuery}".`; // Set specific message
+        this.searchError = `No displayable results found for "${debouncedQuery}".`;
       }
     } catch (err: any) {
       this.handleError(err, `Failed to search for ${apiSearchType}.`);
-      this.searchError =
-        this.feedbackMessage?.text ||
-        `Failed to search for ${apiSearchType}.`;
+      this.searchError = this.feedbackMessage?.text || `Failed to search for ${apiSearchType}.`;
       this.feedbackMessage = null;
     } finally {
       this.isSearching = false;
       this.cdRef.detectChanges();
     }
   }
-  
 
+  /**
+   * Close search results panel
+   */
   closeSearchResults(): void {
-    this.searchQuery = '';       // Clear search query
-    this.searchResults = [];     // Clear results array
-    this.searchError = null;     // Clear any search error
+    this.searchQuery = ''; // Clear search query
+    this.searchResults = []; // Clear results array
+    this.searchError = null; // Clear any search error
     this.showSearchResults = false; // Hide the results area
     this.clearActionFeedback();
+    
     // Ensure debounce triggers clearing if needed
-    this.searchQueryChanged.next(''); 
+    this.searchQueryChanged.next('');
     this.cdRef.detectChanges();
   }
 
+  /**
+   * Follow an artist
+   */
   async addArtist(artist: SpotifyArtist): Promise<void> {
-      if (!artist?.id || this.addedItemIds.has(artist.id)) return;
-      console.log(`Attempting to follow artist: ${artist.name}`);
-      this.clearActionFeedback();
-      try {
-          await this.spotifyService.followArtist(artist.id);
-          this.addedItemIds.add(artist.id); // Mark as added
-          this.showFeedback('success', `${artist.name} followed!`); 
-          // --- START: Add to local lists (NO Resort) ---
-          if (!this.allFollowedArtists.some(a => a.id === artist.id)) {
-            // Add to the beginning of the main array
-            this.allFollowedArtists.unshift(artist); 
-            // If artists tab is active, add to beginning of filtered list too
-            if (this.activeTab === 'artists') {
-                this.filteredArtists.unshift(artist); 
-            }
-            console.log(`Artist ${artist.name} added locally.`);
+    if (!artist?.id || this.addedItemIds.has(artist.id)) return;
+    
+    this.logger.log(`Attempting to follow artist: ${artist.name}`);
+    this.clearActionFeedback();
+    
+    try {
+      await this.spotifyService.followArtist(artist.id);
+      
+      this.addedItemIds.add(artist.id); // Mark as added
+      this.showFeedback('success', `${artist.name} followed!`);
+      
+      // --- Add to local lists (NO Resort) ---
+      if (!this.allFollowedArtists.some(a => a.id === artist.id)) {
+        // Add to the beginning of the main array
+        this.allFollowedArtists.unshift(artist);
+        
+        // If artists tab is active, add to beginning of filtered list too
+        if (this.activeTab === 'artists') {
+          this.filteredArtists.unshift(artist);
         }
-      } catch (err: any) { this.handleError(err, `Failed to follow ${artist.name}.`); }
-
-      finally { this.cdRef.detectChanges(); } // Update button state if needed
+        this.logger.log(`Artist ${artist.name} added locally.`);
+      }
+    } catch (err: any) {
+      this.handleError(err, `Failed to follow ${artist.name}.`);
+    } finally {
+      this.cdRef.detectChanges(); // Update button state if needed
+    }
   }
 
+  /**
+   * Save an album to library
+   */
   async addAlbum(album: SpotifyAlbum): Promise<void> {
-      if (!album?.id || this.addedItemIds.has(album.id)) return;
-      console.log(`Attempting to save album: ${album.name}`);
-      this.clearActionFeedback();
-      try {
-          await this.spotifyService.saveAlbum(album.id);
-          this.addedItemIds.add(album.id);
-          this.showFeedback('success', `Album "${album.name}" saved!`);
-          // --- START: Add to local lists (NO Resort) ---
-          if (!this.allSavedAlbums.some(item => item.album.id === album.id)) {
-            const savedAlbumObject: SpotifySavedAlbumObject = {
-                added_at: new Date().toISOString(), // Use current time
-                album: album 
-            };
-            this.allSavedAlbums.unshift(savedAlbumObject);
-             if (this.activeTab === 'albums') {
-                this.filteredAlbums.unshift(savedAlbumObject);
-                // this.applyFilter(); 
-            }
-            console.log(`Album ${album.name} added locally.`);
-         }
-      } catch (err: any) { this.handleError(err, `Failed to save album ${album.name}.`); }
-      finally { this.cdRef.detectChanges(); }
+    if (!album?.id || this.addedItemIds.has(album.id)) return;
+    
+    this.logger.log(`Attempting to save album: ${album.name}`);
+    this.clearActionFeedback();
+    
+    try {
+      await this.spotifyService.saveAlbum(album.id);
+      
+      this.addedItemIds.add(album.id);
+      this.showFeedback('success', `Album "${album.name}" saved!`);
+      
+      // --- Add to local lists (NO Resort) ---
+      if (!this.allSavedAlbums.some(item => item.album.id === album.id)) {
+        const savedAlbumObject: SpotifySavedAlbumObject = {
+          added_at: new Date().toISOString(), // Use current time
+          album: album
+        };
+        
+        this.allSavedAlbums.unshift(savedAlbumObject);
+        
+        if (this.activeTab === 'albums') {
+          this.filteredAlbums.unshift(savedAlbumObject);
+        }
+        this.logger.log(`Album ${album.name} added locally.`);
+      }
+    } catch (err: any) {
+      this.handleError(err, `Failed to save album ${album.name}.`);
+    } finally {
+      this.cdRef.detectChanges();
+    }
   }
 
+  /**
+   * Follow a playlist
+   */
   async addPlaylist(playlist: SpotifyPlaylist): Promise<void> {
-      if (!playlist?.id || this.addedItemIds.has(playlist.id)) return;
-        console.log(`Attempting to follow playlist: ${playlist.name}`);
-        this.clearActionFeedback();      
-      try {
-          await this.spotifyService.followPlaylist(playlist.id);          
-          this.addedItemIds.add(playlist.id);
-          this.showFeedback('success', `Playlist "${playlist.name}" followed!`);           
-          // --- START: Add to local lists (NO Resort) ---
-          if (!this.allUserPlaylists.some(p => p.id === playlist.id)) {
-            this.allUserPlaylists.unshift(playlist);
-             if (this.activeTab === 'playlists') {
-                this.filteredPlaylists.unshift(playlist);
-                // this.applyFilter(); 
-            }
-            console.log(`Playlist ${playlist.name} added locally.`);
-         }       
-      } catch (err: any) { this.handleError(err, `Failed to follow playlist ${playlist.name}.`); }
-      finally { this.cdRef.detectChanges(); }
+    if (!playlist?.id || this.addedItemIds.has(playlist.id)) return;
+    
+    this.logger.log(`Attempting to follow playlist: ${playlist.name}`);
+    this.clearActionFeedback();
+    
+    try {
+      await this.spotifyService.followPlaylist(playlist.id);
+      
+      this.addedItemIds.add(playlist.id);
+      this.showFeedback('success', `Playlist "${playlist.name}" followed!`);
+      
+      // --- Add to local lists (NO Resort) ---
+      if (!this.allUserPlaylists.some(p => p.id === playlist.id)) {
+        this.allUserPlaylists.unshift(playlist);
+        
+        if (this.activeTab === 'playlists') {
+          this.filteredPlaylists.unshift(playlist);
+        }
+        this.logger.log(`Playlist ${playlist.name} added locally.`);
+      }
+    } catch (err: any) {
+      this.handleError(err, `Failed to follow playlist ${playlist.name}.`);
+    } finally {
+      this.cdRef.detectChanges();
+    }
   }
 
-  onFilterInput(): void { // Simplified - just triggers the Subject
-    this.applyFilterAndSort(); 
-    this.cdRef.detectChanges(); 
+  /**
+   * Apply filter when input changes
+   */
+  onFilterInput(): void {
+    this.applyFilterAndSort();
+    this.cdRef.detectChanges();
   }
 
-  // Combined Filter and Sort Method
+  /**
+   * Combined Filter and Sort Method
+   */
   applyFilterAndSort(): void {
-    console.log(`Applying filter and sort for tab: ${this.activeTab}`);
+    this.logger.log(`Applying filter and sort for tab: ${this.activeTab}`);
+    
     const filterValue = (this.activeTab === 'artists' ? this.artistFilter :
                         this.activeTab === 'albums' ? this.albumFilter :
                         this.playlistFilter).toLowerCase().trim();
@@ -514,23 +661,23 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
 
     // 1. Apply Text Filter (based on active tab)
     if (this.activeTab === 'artists') {
-      itemsToSort = filterValue 
-          ? this.allFollowedArtists.filter(artist => artist.name?.toLowerCase().includes(filterValue)) 
-          : [...this.allFollowedArtists]; // Use copy for sorting
+      itemsToSort = filterValue
+        ? this.allFollowedArtists.filter(artist => artist.name?.toLowerCase().includes(filterValue))
+        : [...this.allFollowedArtists]; // Use copy for sorting
     } else if (this.activeTab === 'albums') {
-      itemsToSort = filterValue 
-          ? this.allSavedAlbums.filter(item =>
-              item.album.name?.toLowerCase().includes(filterValue) ||
-              item.album.artists?.some(artist => artist.name?.toLowerCase().includes(filterValue))
-            ) 
-          : [...this.allSavedAlbums]; // Use copy
+      itemsToSort = filterValue
+        ? this.allSavedAlbums.filter(item =>
+            item.album.name?.toLowerCase().includes(filterValue) ||
+            item.album.artists?.some(artist => artist.name?.toLowerCase().includes(filterValue))
+          )
+        : [...this.allSavedAlbums]; // Use copy
     } else if (this.activeTab === 'playlists') {
-      itemsToSort = filterValue 
-          ? this.allUserPlaylists.filter(playlist =>
-              playlist.name?.toLowerCase().includes(filterValue) ||
-              playlist.owner?.display_name?.toLowerCase().includes(filterValue)
-            ) 
-          : [...this.allUserPlaylists]; // Use copy
+      itemsToSort = filterValue
+        ? this.allUserPlaylists.filter(playlist =>
+            playlist.name?.toLowerCase().includes(filterValue) ||
+            playlist.owner?.display_name?.toLowerCase().includes(filterValue)
+          )
+        : [...this.allUserPlaylists]; // Use copy
     }
     
     // 2. Apply Sorting
@@ -544,100 +691,176 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
     this.cdRef.detectChanges(); // Ensure view updates
   }
 
-  // Method to set sort parameters and trigger update
+  /**
+   * Set sort parameters and trigger update
+   */
   setSort(key: PlaylistSortKey | ArtistSortKey | AlbumSortKey): void {
     let currentKey: string = '';
     let currentDirection: SortDirection = 'asc';
 
     // Determine current settings based on active tab
-    if (this.activeTab === 'playlists') { currentKey = this.playlistSortKey; currentDirection = this.playlistSortDirection; }
-    else if (this.activeTab === 'artists') { currentKey = this.artistSortKey; currentDirection = this.artistSortDirection; }
-    else if (this.activeTab === 'albums') { currentKey = this.albumSortKey; currentDirection = this.albumSortDirection; }
+    if (this.activeTab === 'playlists') {
+      currentKey = this.playlistSortKey;
+      currentDirection = this.playlistSortDirection;
+    } else if (this.activeTab === 'artists') {
+      currentKey = this.artistSortKey;
+      currentDirection = this.artistSortDirection;
+    } else if (this.activeTab === 'albums') {
+      currentKey = this.albumSortKey;
+      currentDirection = this.albumSortDirection;
+    }
     
     // If clicking the same key, toggle direction; otherwise, set new key and default to 'asc'
     let newDirection: SortDirection = 'asc';
     if (currentKey === key) {
-        newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+      newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
     }
 
-    console.log(`Setting sort for ${this.activeTab}: key=${key}, direction=${newDirection}`);
+    this.logger.log(`Setting sort for ${this.activeTab}: key=${key}, direction=${newDirection}`);
 
     // Update the correct state variables
-    if (this.activeTab === 'playlists') { this.playlistSortKey = key as PlaylistSortKey; this.playlistSortDirection = newDirection; }
-    else if (this.activeTab === 'artists') { this.artistSortKey = key as ArtistSortKey; this.artistSortDirection = newDirection; }
-    else if (this.activeTab === 'albums') { this.albumSortKey = key as AlbumSortKey; this.albumSortDirection = newDirection; }
+    if (this.activeTab === 'playlists') {
+      this.playlistSortKey = key as PlaylistSortKey;
+      this.playlistSortDirection = newDirection;
+    } else if (this.activeTab === 'artists') {
+      this.artistSortKey = key as ArtistSortKey;
+      this.artistSortDirection = newDirection;
+    } else if (this.activeTab === 'albums') {
+      this.albumSortKey = key as AlbumSortKey;
+      this.albumSortDirection = newDirection;
+    }
 
     // Re-apply filter and sort
     this.applyFilterAndSort();
   }
 
-  // Sorting logic (operates on the passed array)
+  /**
+   * Sorting logic (operates on the passed array)
+   */
   private sortData(items: any[]): void {
     let sortKey: string = '';
     let sortDirection: SortDirection = 'asc';
 
     // Get sort settings for the current tab
-    if (this.activeTab === 'playlists') { sortKey = this.playlistSortKey; sortDirection = this.playlistSortDirection; }
-    else if (this.activeTab === 'artists') { sortKey = this.artistSortKey; sortDirection = this.artistSortDirection; }
-    else if (this.activeTab === 'albums') { sortKey = this.albumSortKey; sortDirection = this.albumSortDirection; }
-    else { return; } // Should not happen
+    if (this.activeTab === 'playlists') {
+      sortKey = this.playlistSortKey;
+      sortDirection = this.playlistSortDirection;
+    } else if (this.activeTab === 'artists') {
+      sortKey = this.artistSortKey;
+      sortDirection = this.artistSortDirection;
+    } else if (this.activeTab === 'albums') {
+      sortKey = this.albumSortKey;
+      sortDirection = this.albumSortDirection;
+    } else {
+      return; // Should not happen
+    }
 
     const directionMultiplier = sortDirection === 'asc' ? 1 : -1;
 
     items.sort((a, b) => {
-        let valA: any;
-        let valB: any;
+      let valA: any;
+      let valB: any;
 
-        // Extract values based on activeTab and sortKey
-        if (this.activeTab === 'playlists') {
-            const pA = a as SpotifyPlaylist; const pB = b as SpotifyPlaylist;
-            if (sortKey === 'name') { valA = pA.name?.toLowerCase(); valB = pB.name?.toLowerCase(); } 
-            else if (sortKey === 'owner') { valA = pA.owner?.display_name?.toLowerCase() || pA.owner?.id; valB = pB.owner?.display_name?.toLowerCase() || pB.owner?.id; } 
-            else if (sortKey === 'tracks') { valA = pA.tracks?.total ?? 0; valB = pB.tracks?.total ?? 0; }
-        } else if (this.activeTab === 'artists') {
-            const artA = a as SpotifyArtist; const artB = b as SpotifyArtist;
-            if (sortKey === 'name') { valA = artA.name?.toLowerCase(); valB = artB.name?.toLowerCase(); } 
-            else if (sortKey === 'popularity') { valA = artA.popularity ?? -1; valB = artB.popularity ?? -1; } // Use -1 for undefined
-            else if (sortKey === 'followers') { valA = artA.followers?.total ?? 0; valB = artB.followers?.total ?? 0; }
-        } else if (this.activeTab === 'albums') {
-            const itemA = a as SpotifySavedAlbumObject; const itemB = b as SpotifySavedAlbumObject;
-            if (sortKey === 'albumName') { valA = itemA.album.name?.toLowerCase(); valB = itemB.album.name?.toLowerCase(); } 
-            else if (sortKey === 'artistName') { valA = itemA.album.artists?.[0]?.name?.toLowerCase(); valB = itemB.album.artists?.[0]?.name?.toLowerCase(); } // Sort by primary artist
-            else if (sortKey === 'releaseDate') { valA = itemA.album.release_date; valB = itemB.album.release_date; } // Handle dates later
-            else if (sortKey === 'popularity') { valA = itemA.album.popularity ?? -1; valB = itemB.album.popularity ?? -1; } 
-            else if (sortKey === 'addedDate') { valA = itemA.added_at; valB = itemB.added_at; } // Handle dates later
-        }
-
-        // Comparison logic
-        let comparison = 0;
-        if (valA === null || valA === undefined) comparison = -1; // Put nulls/undefined first (or last if directionMultiplier is -1)
-        else if (valB === null || valB === undefined) comparison = 1;
-        else if (typeof valA === 'string' && typeof valB === 'string') {
-            comparison = valA.localeCompare(valB);
-        } else if (typeof valA === 'number' && typeof valB === 'number') {
-            comparison = valA - valB;
-        } else if (sortKey === 'releaseDate' || sortKey === 'addedDate') {
-            // Handle date strings (newer first for desc, older first for asc)
-            const dateA = new Date(valA || 0).getTime();
-            const dateB = new Date(valB || 0).getTime();
-            comparison = dateA - dateB; 
-        }
+      // Extract values based on activeTab and sortKey
+      if (this.activeTab === 'playlists') {
+        const pA = a as SpotifyPlaylist;
+        const pB = b as SpotifyPlaylist;
         
-        return comparison * directionMultiplier;
+        if (sortKey === 'name') {
+          valA = pA.name?.toLowerCase();
+          valB = pB.name?.toLowerCase();
+        } else if (sortKey === 'owner') {
+          valA = pA.owner?.display_name?.toLowerCase() || pA.owner?.id;
+          valB = pB.owner?.display_name?.toLowerCase() || pB.owner?.id;
+        } else if (sortKey === 'tracks') {
+          valA = pA.tracks?.total ?? 0;
+          valB = pB.tracks?.total ?? 0;
+        }
+      } else if (this.activeTab === 'artists') {
+        const artA = a as SpotifyArtist;
+        const artB = b as SpotifyArtist;
+        
+        if (sortKey === 'name') {
+          valA = artA.name?.toLowerCase();
+          valB = artB.name?.toLowerCase();
+        } else if (sortKey === 'popularity') {
+          valA = artA.popularity ?? -1;
+          valB = artB.popularity ?? -1; // Use -1 for undefined
+        } else if (sortKey === 'followers') {
+          valA = artA.followers?.total ?? 0;
+          valB = artB.followers?.total ?? 0;
+        }
+      } else if (this.activeTab === 'albums') {
+        const itemA = a as SpotifySavedAlbumObject;
+        const itemB = b as SpotifySavedAlbumObject;
+        
+        if (sortKey === 'albumName') {
+          valA = itemA.album.name?.toLowerCase();
+          valB = itemB.album.name?.toLowerCase();
+        } else if (sortKey === 'artistName') {
+          valA = itemA.album.artists?.[0]?.name?.toLowerCase();
+          valB = itemB.album.artists?.[0]?.name?.toLowerCase(); // Sort by primary artist
+        } else if (sortKey === 'releaseDate') {
+          valA = itemA.album.release_date;
+          valB = itemB.album.release_date;
+        } else if (sortKey === 'popularity') {
+          valA = itemA.album.popularity ?? -1;
+          valB = itemB.album.popularity ?? -1;
+        } else if (sortKey === 'addedDate') {
+          valA = itemA.added_at;
+          valB = itemB.added_at;
+        }
+      }
+
+      // Comparison logic
+      let comparison = 0;
+      if (valA === null || valA === undefined) comparison = -1; // Put nulls/undefined first (or last if directionMultiplier is -1)
+      else if (valB === null || valB === undefined) comparison = 1;
+      else if (typeof valA === 'string' && typeof valB === 'string') {
+        comparison = valA.localeCompare(valB);
+      } else if (typeof valA === 'number' && typeof valB === 'number') {
+        comparison = valA - valB;
+      } else if (sortKey === 'releaseDate' || sortKey === 'addedDate') {
+        // Handle date strings (newer first for desc, older first for asc)
+        const dateA = new Date(valA || 0).getTime();
+        const dateB = new Date(valB || 0).getTime();
+        comparison = dateA - dateB;
+      }
+      
+      return comparison * directionMultiplier;
     });
   }
 
-  // --- Helpers ---
+  /**
+   * Get concatenated artist names
+   */
   getArtistNames(artists: SpotifyArtist[] | undefined): string {
     if (!artists || artists.length === 0) return 'Unknown Artist';
     return artists.map(a => a.name).join(', ');
   }
-  handleImageError(event: Event): void { /* ... implementation ... */ }
 
-  login(): void { this.spotifyService.authorize('/library'); } // Redirect back here
+  /**
+   * Handle image loading errors
+   */
+  handleImageError(event: Event): void {
+    this.logger.warn('Image loading failed, using fallback');
+    const imgElement = event.target as HTMLImageElement;
+    imgElement.src = 'assets/no-image.jpg';
+  }
+
+  /**
+   * Initiate Spotify login
+   */
+  login(): void {
+    this.spotifyService.authorize('/library');
+  }
+
+  /**
+   * Handle errors uniformly
+   */
   private handleError(err: any, defaultMessage: string): void {
-    console.error(`Error: ${defaultMessage}`, err);
+    this.logger.error(`Error: ${defaultMessage}`, err);
     const message = err?.message || defaultMessage;
-    this.showFeedback('error', message, 7000); 
+    this.showFeedback('error', message, 7000);
   }
 }

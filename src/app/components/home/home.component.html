@@ -6,10 +6,19 @@
       <h1 class="display-3 fw-bold mb-3">Welcome to MeloVerse</h1>
       <p class="lead mb-4 mx-auto">Discover, explore, and organize your music world in one place. Connect with your Spotify account to unlock a universe of possibilities.</p>
       <div class="hero-buttons">
-        <button *ngIf="!isLoggedIn" class="btn btn-success btn-lg px-4 py-2 me-3" (click)="login()">
+        <!-- Fixed Login Button - Added type="button" and role attributes -->
+        <button *ngIf="!isLoggedIn" 
+                class="btn btn-success btn-lg px-4 py-2 me-3" 
+                (click)="login()"
+                type="button"
+                role="button">
           <i class="bi bi-spotify me-2"></i>
           Connect with Spotify
         </button>
+        <!-- Add a login status for debugging -->
+        <div *ngIf="!isLoggedIn" class="mt-2 small text-muted">
+          Ready to connect
+        </div>
       </div>
     </div>
   </div>
@@ -28,7 +37,10 @@
               <h3 class="mb-0 mix-title">Mix Generator</h3>
             </div>
             <p>Create custom playlists tailored to your taste. Generate personalized mixes based on your listening history, followed artists, and saved tracks.</p>
-            <button class="btn btn-success mt-2 create-mix-btn" (click)="openMixGenerator()">
+            <button class="btn btn-success mt-2 create-mix-btn" 
+                    (click)="openMixGenerator()"
+                    type="button"
+                    role="button">
               Create a Mix
             </button>
           </div>
@@ -45,9 +57,9 @@
             </div>
             <h3>Personal Stats</h3>
             <p>Gain insights into your listening habits. See your top tracks and artists over different time periods.</p>
-            <button class="btn btn-outline-success mt-auto w-100" routerLink="/stats">
+            <a class="btn btn-outline-success mt-auto w-100" routerLink="/stats">
               View My Stats
-            </button>
+            </a>
           </div>
         </div>
         
@@ -59,9 +71,9 @@
             </div>
             <h3>New Releases</h3>
             <p>Stay up-to-date with the latest music. Browse newly released albums, singles, and EPs.</p>
-            <button class="btn btn-outline-success mt-auto w-100" routerLink="/new-releases">
+            <a class="btn btn-outline-success mt-auto w-100" routerLink="/new-releases">
               Explore New Music
-            </button>
+            </a>
           </div>
         </div>
         
@@ -73,9 +85,9 @@
             </div>
             <h3>Library Explorer</h3>
             <p>Organize and manage your personal collection. Browse your saved artists, albums, and playlists all in one convenient location.</p>
-            <button class="btn btn-outline-success mt-auto w-100" routerLink="/library">
+            <a class="btn btn-outline-success mt-auto w-100" routerLink="/library">
               Explore My Library
-            </button>
+            </a>
           </div>
         </div>
       </div>
@@ -87,11 +99,20 @@
     <div class="container text-center">
       <h2 class="mb-4">Ready to Enhance Your Music Experience?</h2>
       <p class="lead mb-4">Connect your Spotify account now and start exploring your musical universe.</p>
-      <button *ngIf="!isLoggedIn" class="btn btn-success btn-lg px-5 py-3" (click)="login()">
+      <!-- Fixed CTA Button - Added type="button" and role attributes -->
+      <button *ngIf="!isLoggedIn" 
+              class="btn btn-success btn-lg px-5 py-3" 
+              (click)="login()"
+              type="button"
+              role="button">
         <i class="bi bi-spotify me-2"></i>
         Connect with Spotify
       </button>
-      <button *ngIf="isLoggedIn" class="btn btn-success btn-lg px-5 py-3" (click)="openMixGenerator()">
+      <button *ngIf="isLoggedIn" 
+              class="btn btn-success btn-lg px-5 py-3" 
+              (click)="openMixGenerator()"
+              type="button"
+              role="button">
         <i class="bi bi-shuffle me-2"></i>
         Create Your First Mix
       </button>

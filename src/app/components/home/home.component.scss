@@ -23,11 +23,15 @@ $transition-speed: 0.25s;
     bottom: 0;
     background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1IiBoZWlnaHQ9IjUiPgo8cmVjdCB3aWR0aD0iNSIgaGVpZ2h0PSI1IiBmaWxsPSIjMDAwMDAwIj48L3JlY3Q+CjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuMSI+PC9yZWN0Pgo8L3N2Zz4=');
     opacity: 0.1;
+    pointer-events: none; /* Ensure the overlay doesn't block clicks */
+    z-index: 0; /* Keep the overlay behind content */
   }
   
   .container {
     padding-top: 0.5rem; // Reduced vertical padding 
     padding-bottom: 0.5rem;
+    position: relative; /* Ensure container is positioned relative */
+    z-index: 1; /* Place container above the background overlay */
   }
   
   h1 {
@@ -53,8 +57,13 @@ $transition-speed: 0.25s;
   }
   
   .hero-buttons {
+    position: relative; /* Ensure buttons container is positioned */
+    z-index: 2; /* Place buttons above other elements */
+    
     .btn {
       margin-bottom: 0.5rem;
+      position: relative; /* Make buttons positioned */
+      cursor: pointer !important; /* Force pointer cursor */
       
       @media (min-width: 576px) {
         margin-bottom: 0;
@@ -67,6 +76,8 @@ $transition-speed: 0.25s;
 .features-section {
   background-color: white;
   padding: 3rem 0; // Slightly reduced padding
+  position: relative; /* Position relative for z-index */
+  z-index: 1; /* Ensure content is above any potential overlay */
   
   h2 {
     position: relative;
@@ -84,6 +95,7 @@ $transition-speed: 0.25s;
       height: 3px;
       background: linear-gradient(to right, $success-color, $primary-color);
       transform: translateX(-50%);
+      pointer-events: none; /* Prevent this decoration from blocking clicks */
     }
   }
 }
@@ -99,6 +111,7 @@ $transition-speed: 0.25s;
   height: 100%;
   display: flex;
   flex-direction: column;
+  position: relative; /* Ensure cards are positioned */
   
   &:hover {
     transform: translateY(-10px);
@@ -141,6 +154,9 @@ $transition-speed: 0.25s;
       padding-left: 2rem;
       padding-right: 2rem;
       float: right;
+      position: relative; /* Ensure button is positioned */
+      z-index: 1; /* Place button above other elements */
+      cursor: pointer !important; /* Force pointer cursor */
     }
   }
   
@@ -154,6 +170,7 @@ $transition-speed: 0.25s;
     justify-content: center;
     color: $success-color;
     margin-bottom: 1.5rem;
+    pointer-events: none; /* Prevent icons from blocking clicks */
     
     .mix-generator & {
       margin-bottom: 0;
@@ -175,6 +192,11 @@ $transition-speed: 0.25s;
     margin-bottom: 1.5rem;
     flex-grow: 1;
   }
+  
+  a, button {
+    position: relative; /* Ensure links/buttons are positioned */
+    z-index: 1; /* Place links/buttons above other elements */
+  }
 }
 
 // CTA Section
@@ -182,6 +204,26 @@ $transition-speed: 0.25s;
   background: linear-gradient(135deg, $success-color 0%, $primary-color 100%);
   color: white;
   padding: 4rem 0;
+  position: relative; /* Position relative for z-index */
+  z-index: 1; /* Ensure content is above any potential overlay */
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1IiBoZWlnaHQ9IjUiPgo8cmVjdCB3aWR0aD0iNSIgaGVpZ2h0PSI1IiBmaWxsPSIjMDAwMDAwIj48L3JlY3Q+CjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuMSI+PC9yZWN0Pgo8L3N2Zz4=');
+    opacity: 0.1;
+    pointer-events: none; /* Ensure the overlay doesn't block clicks */
+    z-index: 0; /* Keep the overlay behind content */
+  }
+  
+  .container {
+    position: relative; /* Ensure container is positioned */
+    z-index: 1; /* Place container above the background overlay */
+  }
   
   h2 {
     font-weight: 700;
@@ -196,6 +238,9 @@ $transition-speed: 0.25s;
   .btn {
     transition: all $transition-speed ease;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    position: relative; /* Ensure buttons are positioned */
+    z-index: 2; /* Place buttons above other elements */
+    cursor: pointer !important; /* Force pointer cursor */
     
     &:hover {
       transform: translateY(-3px);

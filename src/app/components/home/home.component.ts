@@ -1,35 +1,76 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { SpotifyService } from '../../services/spotify.service';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
+// Import from barrel file
+import { SpotifyService, LoggerService } from '../../services';
 
+/**
+ * Home component serving as the landing page for the application
+ */
 @Component({
   selector: 'app-home',
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './home.component.html',
-  styleUrl: './home.component.scss'
+  styleUrls: ['./home.component.scss']
 })
-export class HomeComponent implements OnInit {
-  isLoggedIn: boolean = false;
+export class HomeComponent implements OnInit, OnDestroy {
+  isLoggedIn = false;
+  
+  // For cleanup
+  private destroy$ = new Subject<void>();
 
   constructor(
-    private spotifyService: SpotifyService,
+    public spotifyService: SpotifyService, // Made public for template access
+    private logger: LoggerService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
-    this.isLoggedIn = this.spotifyService.isLoggedIn();
+    // Subscribe to auth state
+    this.spotifyService.isLoggedIn$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(loggedIn => {
+        this.isLoggedIn = loggedIn;
+        this.logger.log(`Auth state changed: isLoggedIn = ${loggedIn}`);
+      });
+      
+    // Debug: Initial state check
+    this.logger.log(`Initial auth state: isLoggedIn = ${this.isLoggedIn}`);
+  }
+  
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
+  /**
+   * Initiate Spotify login
+   * Modified with additional debug information 
+   */
   login(): void {
-    this.spotifyService.authorize();
+    // Debug - log before attempt
+    console.log('Login button clicked! Attempting to start Spotify auth...');
+    this.logger.log('Initiating Spotify login from Home page');
+    
+    try {
+      // Call the service authorize method
+      this.spotifyService.authorize('/');
+      console.log('Spotify authorize method called successfully');
+    } catch (error) {
+      console.error('Error when calling authorize method:', error);
+      this.logger.error('Error in login function:', error);
+    }
   }
 
+  /**
+   * Navigate to the mix generator
+   */
   openMixGenerator(): void {
-    // For now, we'll just navigate to a placeholder route
-    // Later we'll implement the modal functionality
+    this.logger.log('Navigating to mix generator');
     this.router.navigate(['/mix-generator']);
   }
 }

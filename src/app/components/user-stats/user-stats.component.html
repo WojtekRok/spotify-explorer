@@ -106,15 +106,15 @@
                   class="list-group list-group-numbered">
                 <li *ngFor="let track of topTracks" 
                     class="list-group-item d-flex align-items-center border-start-0 border-end-0 py-3 hover-bg-light">
-                  <img [src]="track.album.images[2]?.url || track.album.images[0]?.url || 'assets/no-image.jpg'" 
-                       alt="{{ track.album.name }}" 
+                  <img [src]="track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || 'assets/no-image.jpg'" 
+                       [alt]="track.album?.name || 'Album Cover'" 
                        class="me-3 rounded shadow-sm track-image" 
                        width="50" height="50"
                        (error)="handleImageError($event)">
                   <div class="flex-grow-1 text-truncate">
-                    <div class="fw-bold text-truncate" title="{{ track.name }}">{{ track.name }}</div>
-                    <div class="text-muted text-truncate small" title="{{ getArtistNames(track.artists) }}">
-                      {{ getArtistNames(track.artists) }}
+                    <div class="fw-bold text-truncate" [title]="track.name">{{ track.name }}</div>
+                    <div class="text-muted text-truncate small" [title]="getArtistNames(track.artists || [])">
+                      {{ getArtistNames(track.artists || []) }}
                     </div>
                   </div>
                   <a [href]="track.external_urls?.spotify" 
@@ -169,16 +169,16 @@
                   class="list-group list-group-numbered">
                 <li *ngFor="let artist of topArtists" 
                     class="list-group-item d-flex align-items-center border-start-0 border-end-0 py-3 hover-bg-light">
-                  <img [src]="artist.images[2]?.url || artist.images[0]?.url || 'assets/no-image.jpg'" 
-                       alt="{{ artist.name }}" 
+                  <img [src]="artist.images?.[2]?.url || artist.images?.[0]?.url || 'assets/no-image.jpg'" 
+                       [alt]="artist.name" 
                        class="me-3 rounded-circle shadow-sm track-image" 
                        width="50" height="50"
                        (error)="handleImageError($event)">
                   <div class="flex-grow-1 text-truncate">
-                    <div class="fw-bold text-truncate" title="{{ artist.name }}">{{ artist.name }}</div>
-                    <div *ngIf="artist.genres.length > 0" 
+                    <div class="fw-bold text-truncate" [title]="artist.name">{{ artist.name }}</div>
+                    <div *ngIf="artist.genres && artist.genres.length > 0" 
                          class="text-muted text-truncate small" 
-                         title="{{ artist.genres.join(', ') }}">
+                         [title]="artist.genres.join(', ')">
                       {{ artist.genres.join(', ') }}
                     </div>
                   </div>
@@ -233,22 +233,22 @@
               class="list-group list-unstyled">
             <li *ngFor="let item of recentTracks" 
                 class="list-group-item d-flex align-items-center border-start-0 border-end-0 py-3 hover-bg-light">
-              <img [src]="item.track.album.images[2]?.url || item.track.album.images[0]?.url || 'assets/no-image.jpg'" 
-                   alt="{{ item.track.album.name }}" 
+              <img [src]="item.track?.album?.images?.[2]?.url || item.track?.album?.images?.[0]?.url || 'assets/no-image.jpg'" 
+                   [alt]="item.track?.album?.name || 'Album Cover'" 
                    class="me-3 rounded shadow-sm track-image" 
                    width="50" height="50"
                    (error)="handleImageError($event)">
               <div class="flex-grow-1 text-truncate">
-                <div class="fw-bold text-truncate" title="{{ item.track.name }}">{{ item.track.name }}</div>
-                <div class="text-muted text-truncate small" title="{{ getArtistNames(item.track.artists) }}">
-                  {{ getArtistNames(item.track.artists) }}
+                <div class="fw-bold text-truncate" [title]="item.track?.name">{{ item.track?.name }}</div>
+                <div class="text-muted text-truncate small" [title]="getArtistNames(item.track?.artists || [])">
+                  {{ getArtistNames(item.track?.artists || []) }}
                 </div>
                 <div class="text-muted small">
                   <i class="bi bi-clock me-1"></i>
                   Played: {{ item.played_at | date:'short' }}
                 </div> 
               </div>
-              <a [href]="item.track.external_urls?.spotify" 
+              <a [href]="item.track?.external_urls?.spotify" 
                  target="_blank" 
                  class="btn btn-sm btn-outline-success ms-2" 
                  title="Open in Spotify">

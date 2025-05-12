@@ -1,36 +1,81 @@
-// new-releases.component.ts (Updated for Spotify + Type Filtering)
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SpotifyService } from '../../services/spotify.service'; // Use Spotify service again
-import { finalize } from 'rxjs/operators'; // Keep finalize if using Observables, not needed for async/await
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
+// Import from barrel file
+import { SpotifyService, LoggerService } from '../../services';
+
+// Define the filter types for the UI
+type FilterType = 'all' | 'album' | 'single' | 'compilation';
+
+// Define a more complete type for album_type (including 'ep' which Spotify API can return)
+type SpotifyAlbumType = 'album' | 'single' | 'compilation' | 'ep' | string;
+
+// Define our album interface with the updated type
+interface SpotifyAlbum {
+  id: string;
+  name: string;
+  album_type: SpotifyAlbumType;
+  artists: Array<{id: string; name: string}>;
+  images: Array<{url: string; height: number; width: number}>;
+  release_date: string;
+  external_urls: {spotify?: string};
+  [key: string]: any; // Allow for other properties
+}
+
+/**
+ * Component for displaying Spotify's new releases with filtering options
+ */
 @Component({
   selector: 'app-new-releases',
   standalone: true,
-  imports: [CommonModule, FormsModule], // Ensure CommonModule for *ngIf/*ngFor
+  imports: [CommonModule, FormsModule],
   templateUrl: './new-releases.component.html',
   styleUrls: ['./new-releases.component.scss']
 })
-export class NewReleasesComponent implements OnInit {
-  allNewReleases: any[] = []; // Store all fetched releases
-  filteredNewReleases: any[] = []; // Store releases to display
-  loading: boolean = false;
+export class NewReleasesComponent implements OnInit, OnDestroy {
+  // Data
+  allNewReleases: SpotifyAlbum[] = [];      // Store all fetched releases
+  filteredNewReleases: SpotifyAlbum[] = []; // Store releases to display after filtering
+  
+  // UI State
+  loading = false;
   error: string | null = null;
-  isLoggedIn: boolean = false;
-
+  isLoggedIn = false;
+  
   // Filter state
-  selectedAlbumType: 'all' | 'album' | 'single' | 'compilation' = 'all'; 
+  selectedAlbumType: FilterType = 'all';
+  
+  // For cleanup
+  private destroy$ = new Subject<void>();
 
-  constructor(public spotifyService: SpotifyService) {} // Inject SpotifyService
+  constructor(
+    public spotifyService: SpotifyService,
+    private logger: LoggerService
+  ) {}
 
   ngOnInit(): void {
-    this.isLoggedIn = this.spotifyService.isLoggedIn();
-    if (this.isLoggedIn) {
-      this.loadNewReleases();
-    }
+    // Subscribe to auth state
+    this.spotifyService.isLoggedIn$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(loggedIn => {
+        this.isLoggedIn = loggedIn;
+        if (this.isLoggedIn && this.allNewReleases.length === 0) {
+          this.loadNewReleases();
+        }
+      });
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * Load new releases from Spotify
+   */
   async loadNewReleases(): Promise<void> {
     if (!this.isLoggedIn) {
       this.error = "Please log in with Spotify to see new releases.";
@@ -43,28 +88,33 @@ export class NewReleasesComponent implements OnInit {
     this.filteredNewReleases = [];
 
     try {
-      // Call the simplified Spotify service method
+      this.logger.log("Loading new releases from Spotify");
       const data = await this.spotifyService.getNewReleases(50);
 
       if (data && data.albums && data.albums.items) {
         this.allNewReleases = data.albums.items;
-        // Optional: Log types found for debugging
+        
+        // Log found album types for debugging
         const typesFound = new Set(this.allNewReleases.map(r => r.album_type));
-        console.log("Album types found in this batch:", Array.from(typesFound));
+        this.logger.debug("Album types found:", Array.from(typesFound));
 
         this.applyFilter(); // Apply the default filter initially
+        this.logger.log(`Loaded ${this.allNewReleases.length} new releases`);
       } else {
         this.error = 'No new releases available or failed to parse response.';
+        this.logger.warn(this.error);
       }
     } catch (error: any) {
-      console.error('Error loading new releases:', error);
+      this.logger.error('Error loading new releases:', error);
       this.error = error.message || 'Failed to load new releases';
     } finally {
       this.loading = false;
     }
   }
 
-  // Function to apply the current filter
+  /**
+   * Apply the current filter to the releases
+   */
   applyFilter(): void {
     if (this.selectedAlbumType === 'all') {
       this.filteredNewReleases = [...this.allNewReleases];
@@ -72,7 +122,7 @@ export class NewReleasesComponent implements OnInit {
       this.filteredNewReleases = this.allNewReleases.filter(
         release => release.album_type === 'album'
       );
-    } else if (this.selectedAlbumType === 'single') { // Now includes 'ep'
+    } else if (this.selectedAlbumType === 'single') {
       this.filteredNewReleases = this.allNewReleases.filter(
         release => release.album_type === 'single' || release.album_type === 'ep'
       );
@@ -81,25 +131,51 @@ export class NewReleasesComponent implements OnInit {
         release => release.album_type === 'compilation'
       );
     } else {
-       // Should not happen, but default to all
-       this.filteredNewReleases = [...this.allNewReleases];
+      // Default to all
+      this.filteredNewReleases = [...this.allNewReleases];
     }
-    console.log(`Filtered to show ${this.selectedAlbumType}: ${this.filteredNewReleases.length} items`);
+    
+    this.logger.log(`Filtered to show ${this.selectedAlbumType}: ${this.filteredNewReleases.length} items`);
   }
 
-  // Method called when user clicks a filter button/tab
-  setFilter(type: 'all' | 'album' | 'single' | 'compilation'): void {
+  /**
+   * Set the filter type and apply it
+   */
+  setFilter(type: FilterType): void {
     this.selectedAlbumType = type;
     this.applyFilter();
   }
 
-  // Keep login/image error handlers
+  /**
+   * Handle Spotify login
+   */
   login(): void {
     this.spotifyService.authorize('/new-releases');
   }
 
+  /**
+   * Handle image loading errors
+   */
   handleImageError(event: Event): void {
+    this.logger.warn('Image loading failed, using fallback');
     const imgElement = event.target as HTMLImageElement;
     imgElement.src = 'assets/no-image.jpg';
+  }
+  
+  /**
+   * Reload the new releases data
+   */
+  refresh(): void {
+    this.loadNewReleases();
+  }
+  
+  /**
+   * Get artist names as a string
+   */
+  getArtistNames(album: SpotifyAlbum): string {
+    if (!album.artists || album.artists.length === 0) {
+      return 'Unknown Artist';
+    }
+    return album.artists.map(artist => artist.name).join(', ');
   }
 }
