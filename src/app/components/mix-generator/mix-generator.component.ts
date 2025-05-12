@@ -982,7 +982,7 @@ export class MixGeneratorComponent implements OnInit, OnDestroy {
     try {
       // --- 3. Create Playlist ---
       const name = trimmedPlaylistName;
-      const description = `Generated mix (${this.selectedSourceMode} mode): ${this.generatedTracks.length} tracks. Created by Music Explorer.`;
+      const description = `Generated mix using (${this.selectedSourceMode} mode): ${this.generatedTracks.length} tracks. Created by MeloVerse`;
       const isPublic = this.isPlaylistPublic;
 
       this.logger.log(`Creating playlist with name "${name}"`);
