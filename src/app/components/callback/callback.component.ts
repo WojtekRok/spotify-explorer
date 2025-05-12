@@ -1,4 +1,4 @@
-import { Component, OnInit, PLATFORM_ID, Inject } from '@angular/core';
+import { Component, OnInit, Inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { SpotifyAuthService } from '../../services/spotify-auth.service';
@@ -15,24 +15,15 @@ export class CallbackComponent implements OnInit {
   loading = true;
   error = false;
   errorMessage = '';
-  isBrowser: boolean;
+  
 
   constructor(
-    @Inject(PLATFORM_ID) private platformId: Object,
     public authService: SpotifyAuthService,
     private router: Router,
     private logger: LoggerService
-  ) {
-    this.isBrowser = isPlatformBrowser(platformId);
-  }
+  ) {}
 
   async ngOnInit(): Promise<void> {
-    // Skip processing during server-side rendering
-    if (!this.isBrowser) {
-      this.logger.log('Callback: Skipping processing in SSR mode');
-      return;
-    }
-    
     try {
       this.logger.log('Callback component initialized, processing auth callback...');
       

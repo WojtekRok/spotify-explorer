@@ -1,6 +1,6 @@
 // Update to spotify-auth.service.ts to fix SSR issues
 
-import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
+import { Injectable, Inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../environments/environment';
 import { SpotifyStorageService } from './spotify-storage.service';
@@ -28,9 +28,6 @@ export class SpotifyAuthService {
   private _isLoggedIn$ = new BehaviorSubject<boolean>(false);
   public isLoggedIn$ = this._isLoggedIn$.asObservable();
   
-  // SSR detection
-  private readonly isBrowser: boolean;
-  
   // Scopes required by the app
   private readonly scopes = [
     'user-read-private', 'user-read-email', 'user-top-read',
@@ -41,21 +38,12 @@ export class SpotifyAuthService {
   ];
   
   constructor(
-    @Inject(PLATFORM_ID) private platformId: Object,
     private storageService: SpotifyStorageService,
     private logger: LoggerService
-  ) {
-    this.isBrowser = isPlatformBrowser(platformId);
-    
-    // Only initialize token state in browser environment
-    if (this.isBrowser) {
-      this.refreshFromStorage();
-    }
-  }
+  ) {}    
 
   // Refresh token state from storage
-  private refreshFromStorage(): void {
-    if (!this.isBrowser) return;
+  private refreshFromStorage(): void {   
     
     const token = this.storageService.getToken();
     if (token && !this.storageService.isTokenExpired()) {
@@ -73,8 +61,7 @@ export class SpotifyAuthService {
   }
 
   // PKCE flow methods
-  private generateRandomString(length: number): string {
-    if (!this.isBrowser) return '';    
+  private generateRandomString(length: number): string {  
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     const values = crypto.getRandomValues(new Uint8Array(length));
     return Array.from(values)
@@ -82,9 +69,7 @@ export class SpotifyAuthService {
       .join('');
   }
 
-  private async generateCodeChallenge(codeVerifier: string): Promise<string> {
-    if (!this.isBrowser) return '';
-    
+  private async generateCodeChallenge(codeVerifier: string): Promise<string> {    
     const encoder = new TextEncoder();
     const data = encoder.encode(codeVerifier);
     const digest = await crypto.subtle.digest('SHA-256', data);
@@ -100,11 +85,6 @@ export class SpotifyAuthService {
    * @param returnPath Optional path to return to after auth
    */
   public authorize(returnPath: string = '/'): void {
-    if (!this.isBrowser) {
-      this.logger.log('Authorize: Skipping - not in browser environment');
-      return;
-    }
-    
     try {
       // Store the return path
       localStorage.setItem('spotify_auth_return_path', returnPath);
@@ -147,13 +127,7 @@ export class SpotifyAuthService {
    * Handle the callback from Spotify auth
    * @returns Promise<boolean> Success of the token exchange
    */
-  async handleCallback(): Promise<boolean> {
-    // Early exit for server-side rendering - return neutral value instead of error
-    if (!this.isBrowser) {
-      // Don't log a warning, just quietly return without an error
-      return false;
-    }
-    
+  async handleCallback(): Promise<boolean> {    
     this.logger.log("HandleCallback: Processing authorization callback");
     
     // 1. Get params from URL
@@ -253,7 +227,6 @@ export class SpotifyAuthService {
    * Refresh the access token using refresh token
    */
   public async refreshAccessToken(): Promise<boolean> {
-    if (!this.isBrowser) return false;
     
     const refreshToken = this.storageService.getRefreshToken();
     if (!refreshToken) {
@@ -325,7 +298,6 @@ export class SpotifyAuthService {
    * @returns Promise<string | null> Valid token or null if unavailable
    */
   public async ensureValidToken(): Promise<string | null> {
-    if (!this.isBrowser) return null;
     
     // Check if we have a token in memory first
     let currentToken = this._token$.value;
@@ -364,7 +336,6 @@ export class SpotifyAuthService {
    * Check if user is currently logged in
    */
   public isLoggedIn(): boolean {
-    if (!this.isBrowser) return false;
     
     // First check if we have an active token in memory
     if (this._token$.value) {
@@ -384,7 +355,6 @@ export class SpotifyAuthService {
    * Log out user by clearing tokens
    */
   public logout(): void {
-    if (!this.isBrowser) return;
     
     // Update service state
     this._token$.next(null);
