@@ -2,9 +2,9 @@
 <div class="home-page">
   <!-- Hero Section -->
   <div class="hero-section">
-    <div class="container py-4 text-center">
-      <h1 class="display-3 fw-bold mb-3">Welcome to MeloVerse</h1>
-      <p class="lead mb-4 mx-auto">Discover, explore, and organize your music world in one place. Connect with your Spotify account to unlock a universe of possibilities.</p>
+    <div class="container py-2 text-center">
+      <h1 class="display-4 fw-bold mb-2">Welcome to MeloVerse</h1>
+      <p class="lead mb-3 mx-auto">Discover, explore, and organize your music world in one place. Connect with your Spotify account to unlock a universe of possibilities.</p>
       <div class="hero-buttons">
         <!-- Fixed Login Button - Added type="button" and role attributes -->
         <button *ngIf="!isLoggedIn" 
@@ -24,10 +24,10 @@
   </div>
 
   <!-- Features Section -->
-  <div class="features-section py-5">
+  <div class="features-section py-4">
     <div class="container">
       <!-- Mix Generator (Full Width) -->
-      <div class="row mb-4">
+      <div class="row mb-3">
         <div class="col-12">
           <div class="feature-card featured mix-generator">
             <div class="d-flex align-items-center mb-2">
@@ -48,11 +48,11 @@
       </div>
       
       <!-- Three Equal Columns -->
-      <div class="row g-4">
+      <div class="row g-3">
         <!-- Personal Stats -->
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-3">
           <div class="feature-card h-100">
-            <div class="feature-icon mb-3">
+            <div class="feature-icon mb-2">
               <i class="bi bi-bar-chart-line fs-1"></i>
             </div>
             <h3>Personal Stats</h3>
@@ -64,9 +64,9 @@
         </div>
         
         <!-- New Releases -->
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-3">
           <div class="feature-card h-100">
-            <div class="feature-icon mb-3">
+            <div class="feature-icon mb-2">
               <i class="bi bi-music-note-list fs-1"></i>
             </div>
             <h3>New Releases</h3>
@@ -78,9 +78,9 @@
         </div>
         
         <!-- Library Explorer -->
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-3">
           <div class="feature-card h-100">
-            <div class="feature-icon mb-3">
+            <div class="feature-icon mb-2">
               <i class="bi bi-collection-play fs-1"></i>
             </div>
             <h3>Library Explorer</h3>
@@ -95,13 +95,13 @@
   </div>
   
   <!-- CTA Section -->
-  <div class="cta-section py-5">
+  <div class="cta-section py-3">
     <div class="container text-center">
-      <h2 class="mb-4">Ready to Enhance Your Music Experience?</h2>
-      <p class="lead mb-4">Connect your Spotify account now and start exploring your musical universe.</p>
+      <h2 class="mb-3">Ready to Enhance Your Music Experience?</h2>
+      <p class="lead mb-3">Connect your Spotify account now and start exploring your musical universe.</p>
       <!-- Fixed CTA Button - Added type="button" and role attributes -->
       <button *ngIf="!isLoggedIn" 
-              class="btn btn-success btn-lg px-5 py-3" 
+              class="btn btn-success btn-lg px-5 py-2" 
               (click)="login()"
               type="button"
               role="button">
@@ -109,7 +109,7 @@
         Connect with Spotify
       </button>
       <button *ngIf="isLoggedIn" 
-              class="btn btn-success btn-lg px-5 py-3" 
+              class="btn btn-success btn-lg px-5 py-2" 
               (click)="openMixGenerator()"
               type="button"
               role="button">

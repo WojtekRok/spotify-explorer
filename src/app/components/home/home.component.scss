@@ -6,13 +6,20 @@ $success-color: var(--bs-success, #198754);
 $border-radius: 10px;
 $transition-speed: 0.25s;
 
+// Home Page Container
+.home-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 // Hero Section
 .hero-section {
   background: linear-gradient(135deg, #198754 0%, #0d6efd 100%);
   color: white;
   position: relative;
   overflow: hidden;
-  padding: 3rem 0; // Reduced padding to make hero section height 10-15% less
+  padding: 2rem 0; // Reduced padding further
   
   &::before {
     content: '';
@@ -36,7 +43,7 @@ $transition-speed: 0.25s;
   
   h1 {
     font-weight: 800;
-    margin-bottom: 1rem; // Reduced from 1.5rem
+    margin-bottom: 0.75rem; // Reduced further
     
     @media (max-width: 768px) {
       font-size: 2.25rem; // Slightly smaller on mobile
@@ -49,7 +56,7 @@ $transition-speed: 0.25s;
     max-width: 700px;
     margin-left: auto;
     margin-right: auto;
-    margin-bottom: 1rem; // Reduced margin
+    margin-bottom: 0.75rem; // Reduced margin
     
     @media (max-width: 768px) {
       font-size: 1rem;
@@ -75,14 +82,15 @@ $transition-speed: 0.25s;
 // Features Section
 .features-section {
   background-color: white;
-  padding: 3rem 0; // Slightly reduced padding
+  padding: 2rem 0; // Reduced padding further
   position: relative; /* Position relative for z-index */
   z-index: 1; /* Ensure content is above any potential overlay */
+  flex-grow: 1;
   
   h2 {
     position: relative;
     display: inline-block;
-    margin-bottom: 3rem;
+    margin-bottom: 2rem; // Reduced from 3rem
     font-weight: 700;
     color: #333;
     
@@ -104,7 +112,7 @@ $transition-speed: 0.25s;
 .feature-card {
   background: white;
   border-radius: $border-radius;
-  padding: 2rem;
+  padding: 1.5rem; // Reduced padding
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
   transition: transform $transition-speed ease, box-shadow $transition-speed ease;
   border: 1px solid rgba(0, 0, 0, 0.05);
@@ -114,7 +122,7 @@ $transition-speed: 0.25s;
   position: relative; /* Ensure cards are positioned */
   
   &:hover {
-    transform: translateY(-10px);
+    transform: translateY(-5px); // Reduced from -10px
     box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
   }
   
@@ -122,7 +130,7 @@ $transition-speed: 0.25s;
     border-color: $success-color;
     border-width: 2px;
     box-shadow: 0 8px 20px rgba($success-color, 0.15);
-    margin-bottom: 1.5rem; // Added margin to separate from the cards below
+    margin-bottom: 1rem; // Reduced margin
     
     &:hover {
       box-shadow: 0 15px 30px rgba($success-color, 0.2);
@@ -135,12 +143,12 @@ $transition-speed: 0.25s;
   }
   
   &.mix-generator {
-    padding: 1.5rem;
+    padding: 1.25rem; // Reduced padding
     background: linear-gradient(to right, rgba($success-color, 0.05), rgba($primary-color, 0.05));
     border-left: 4px solid $success-color;
     
     .mix-title {
-      font-size: 1.8rem;
+      font-size: 1.6rem; // Reduced from 1.8rem
       font-weight: 700;
       background: linear-gradient(135deg, $success-color, $primary-color);
       -webkit-background-clip: text;
@@ -161,36 +169,37 @@ $transition-speed: 0.25s;
   }
   
   .feature-icon {
-    width: 70px;
-    height: 70px;
+    width: 60px; // Reduced from 70px
+    height: 60px; // Reduced from 70px
     border-radius: 50%;
     background: rgba($success-color, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
     color: $success-color;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem; // Reduced from 1.5rem
     pointer-events: none; /* Prevent icons from blocking clicks */
     
     .mix-generator & {
       margin-bottom: 0;
-      width: 60px;
-      height: 60px;
+      width: 50px; // Reduced from 60px
+      height: 50px; // Reduced from 60px
       background: linear-gradient(135deg, rgba($success-color, 0.2), rgba($primary-color, 0.2));
     }
   }
   
   h3 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
+    font-size: 1.4rem; // Reduced from 1.5rem
+    margin-bottom: 0.75rem; // Reduced from 1rem
     font-weight: 600;
     color: #333;
   }
   
   p {
     color: #6c757d;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem; // Reduced from 1.5rem
     flex-grow: 1;
+    font-size: 0.95rem; // Slightly smaller text
   }
   
   a, button {
@@ -199,11 +208,20 @@ $transition-speed: 0.25s;
   }
 }
 
+// Row and column spacing adjustments
+.row.g-4 {
+  margin-top: 0.5rem; // Add a smaller top margin
+}
+
+.row .mb-4 {
+  margin-bottom: 0.75rem !important; // Reduce bottom margin
+}
+
 // CTA Section
 .cta-section {
   background: linear-gradient(135deg, $success-color 0%, $primary-color 100%);
   color: white;
-  padding: 4rem 0;
+  padding: 2.5rem 0; // Reduced from 4rem
   position: relative; /* Position relative for z-index */
   z-index: 1; /* Ensure content is above any potential overlay */
   
@@ -227,12 +245,16 @@ $transition-speed: 0.25s;
   
   h2 {
     font-weight: 700;
+    font-size: 1.8rem; // Reduced size
+    margin-bottom: 0.75rem; // Reduced spacing
   }
   
   .lead {
     font-weight: 300;
     max-width: 700px;
     margin: 0 auto;
+    margin-bottom: 1.5rem; // Added proper bottom margin
+    font-size: 1.05rem; // Slightly smaller
   }
   
   .btn {
@@ -252,6 +274,15 @@ $transition-speed: 0.25s;
 // Responsive adjustments
 @media (max-width: 767.98px) {
   .feature-card {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem; // Reduced from 1.5rem
+  }
+  
+  // Further reduce spacing on mobile
+  .hero-section {
+    padding: 1.5rem 0;
+  }
+  
+  .features-section, .cta-section {
+    padding: 1.5rem 0;
   }
 }
