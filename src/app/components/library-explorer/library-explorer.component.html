@@ -283,7 +283,7 @@
                         <span class="d-none d-md-inline">Open</span>
                       </a>
                       <button class="btn btn-sm btn-outline-danger"  
-                              (click)="removePlaylist(playlist, $event)" 
+                              (click)="confirmRemoval(playlist, 'playlist', $event)" 
                               [disabled]="loadingProfile || !spotifyUserId"
                               title="{{ loadingProfile || !spotifyUserId ? 'Loading...' : ((playlist.owner.id === spotifyUserId) ? 'Manage owned playlist...' : 'Unfollow Playlist') }}">
                         <i class="bi bi-x-lg"></i>
@@ -397,7 +397,7 @@
                         <span class="d-none d-md-inline">Open</span>
                       </a>
                       <button class="btn btn-sm btn-outline-danger" 
-                              (click)="removeArtist(artist, $event)" 
+                              (click)="confirmRemoval(artist, 'artist', $event)" 
                               title="Unfollow Artist">
                         <i class="bi bi-x-lg"></i>
                       </button>
@@ -530,7 +530,7 @@
                         <span class="d-none d-md-inline">Open</span>
                       </a>
                       <button class="btn btn-sm btn-outline-danger" 
-                              (click)="removeAlbum(item, $event)" 
+                              (click)="confirmRemoval(item, 'album', $event)" 
                               title="Remove Album from Library">
                         <i class="bi bi-x-lg"></i>
                       </button>
@@ -555,6 +555,85 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+<!-- Confirmation Modal/Dialog -->
+<div *ngIf="showConfirmDialog" class="confirmation-overlay">
+  <div class="confirmation-dialog card shadow-lg">
+    <div class="card-header d-flex justify-content-between align-items-center bg-light">
+      <h5 class="modal-title mb-0">
+        <span *ngIf="confirmActionType === 'owned-playlist-info'">Information</span>
+        <span *ngIf="confirmActionType === 'unfollow-artist'">Confirm Unfollow Artist</span>
+        <span *ngIf="confirmActionType === 'unsave-album'">Confirm Unsave Album</span>
+        <span *ngIf="confirmActionType === 'unfollow-playlist'">Confirm Unfollow Playlist</span>
+      </h5>
+      <button type="button" class="btn-close" aria-label="Close" (click)="cancelConfirmation()"></button>
+    </div>
+    <div class="card-body">
+      <!-- Owned Playlist Message -->
+      <div *ngIf="confirmActionType === 'owned-playlist-info' && itemToConfirm">
+         <p>
+            You cannot unfollow or delete <strong>"{{ getItemName(itemToConfirm) }}"</strong> from here because you are the owner of this playlist.
+         </p>
+         <p>
+            To manage this playlist (rename, delete, etc.), please do so directly in the Spotify application or web client.
+         </p>
+      </div>
+
+      <!-- Unfollow/Unsave Confirmation Message -->
+      <div *ngIf="confirmActionType !== 'owned-playlist-info' && itemToConfirm">
+        <p>Are you sure you want to
+           <strong *ngIf="confirmActionType === 'unfollow-artist'">unfollow:</strong>
+           <strong *ngIf="confirmActionType === 'unsave-album'">unsave:</strong>
+           <strong *ngIf="confirmActionType === 'unfollow-playlist'">unfollow:</strong>
+
+           <!-- <span *ngIf="confirmActionType === 'unfollow-artist'">artist</span>
+           <span *ngIf="confirmActionType === 'unsave-album'">album</span>
+           <span *ngIf="confirmActionType === 'unfollow-playlist'">playlist</span>: -->
+        </p>
+        
+        <!-- Safely display the name based on item type -->
+        <p class="fw-bold mb-3 text-truncate">
+            <ng-container *ngIf="confirmActionType === 'unfollow-artist'">
+              {{ getItemName(itemToConfirm) }}
+            </ng-container>
+            
+            <ng-container *ngIf="confirmActionType === 'unsave-album'">
+              {{ getAlbumName(itemToConfirm) }}
+            </ng-container>
+            
+            <ng-container *ngIf="confirmActionType === 'unfollow-playlist'">
+              {{ getItemName(itemToConfirm) }}
+            </ng-container>
+        </p>
+
+        <div class="alert alert-warning small py-2" role="alert">
+            This action cannot be undone easily within this application. You would need to search for and add it back manually.
+        </div>
+      </div>
+    </div>
+    <div class="card-footer bg-light d-flex justify-content-end">
+      <!-- Buttons for Unfollow/Unsave Confirmation -->
+      <ng-container *ngIf="confirmActionType !== 'owned-playlist-info'">
+         <button type="button" class="btn btn-secondary me-2" (click)="cancelConfirmation()" [disabled]="loadingConfirmationAction">Cancel</button>
+         <button type="button"
+                 class="btn btn-danger"
+                 (click)="handleConfirmation()"
+                 [disabled]="loadingConfirmationAction">
+            <span *ngIf="loadingConfirmationAction" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            <span *ngIf="!loadingConfirmationAction">
+              <span *ngIf="confirmActionType === 'unfollow-artist'">Unfollow</span>
+              <span *ngIf="confirmActionType === 'unsave-album'">Unsave</span>
+              <span *ngIf="confirmActionType === 'unfollow-playlist'">Unfollow</span>
+            </span>
+         </button>
+      </ng-container>
+      
+      <!-- Button for Owned Playlist Info -->
+      <ng-container *ngIf="confirmActionType === 'owned-playlist-info'">
+         <button type="button" class="btn btn-primary" (click)="cancelConfirmation()">Close</button>
+      </ng-container>
     </div>
   </div>
 </div>

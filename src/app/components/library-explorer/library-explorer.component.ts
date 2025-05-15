@@ -26,6 +26,8 @@ type PlaylistSortKey = 'name' | 'owner' | 'tracks';
 type ArtistSortKey = 'name' | 'popularity' | 'followers';
 type AlbumSortKey = 'albumName' | 'artistName' | 'releaseDate' | 'popularity' | 'addedDate';
 
+type ConfirmationActionType = 'unfollow-artist' | 'unsave-album' | 'unfollow-playlist' | 'owned-playlist-info';
+
 /**
  * Component for exploring and managing the user's Spotify library
  * - View followed artists
@@ -68,6 +70,7 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
   loadingAlbums = false;
   loadingPlaylists = false;
   loadingProfile = false;
+  loadingConfirmationAction = false;
   
   // --- Error State ---
   error: string | null = null;
@@ -97,6 +100,11 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
   
   albumSortKey: AlbumSortKey = 'addedDate'; // Default sort (newest first)
   albumSortDirection: SortDirection = 'desc';
+
+  // --- Confirmation Dialog State ---
+  showConfirmDialog = false;
+  itemToConfirm: SpotifyArtist | SpotifySavedAlbumObject | SpotifyPlaylist | null = null;
+  confirmActionType: ConfirmationActionType | null = null;
   
   // For cleanup
   private destroy$ = new Subject<void>();
@@ -317,6 +325,162 @@ export class LibraryExplorerComponent implements OnInit, OnDestroy {
     }
     this.feedbackMessage = null;
   }
+
+  // --- Confirmation Dialog Methods ---
+  /**
+   * Open confirmation dialog for removal action
+   */
+  confirmRemoval(item: SpotifyArtist | SpotifySavedAlbumObject | SpotifyPlaylist, type: 'artist' | 'album' | 'playlist', event: MouseEvent): void {
+    event.stopPropagation(); // Prevent list item click behavior if any
+    this.clearActionFeedback(); // Clear any existing feedback
+
+    // Specific check for owned playlists
+    if (type === 'playlist' && (item as SpotifyPlaylist).owner?.id === this.spotifyUserId) {
+      this.itemToConfirm = item;
+      this.confirmActionType = 'owned-playlist-info'; // Special type for owned playlist
+      this.showConfirmDialog = true;
+      if ('id' in item) {
+        this.logger.log(`Confirming removal for owned playlist: ${item.id}. Showing info dialog.`);
+      } else {
+        this.logger.warn('Item does not have an ID property.');
+      }
+    } else {
+      // Standard confirmation for unfollow/unsave
+      const actionMap: Record<'artist' | 'album' | 'playlist', ConfirmationActionType> = {
+        artist: 'unfollow-artist',
+        album: 'unsave-album',
+        playlist: 'unfollow-playlist',
+      };
+      
+      this.itemToConfirm = item;
+      this.confirmActionType = actionMap[type];
+      this.showConfirmDialog = true;
+      this.logger.log(`Confirming removal for ${type}: ${type === 'album' ? (item as SpotifySavedAlbumObject).album.id : (item as SpotifyArtist | SpotifyPlaylist).id}`);
+    }
+    this.cdRef.detectChanges();
+  }
+  /**
+   * Handle the confirmed action
+   */
+  async handleConfirmation(): Promise<void> {
+    if (!this.itemToConfirm || !this.confirmActionType || this.confirmActionType === 'owned-playlist-info') {
+      // Should not happen for non-info types, or just close info dialog
+      this.cancelConfirmation();
+      return;
+    }
+
+    this.loadingConfirmationAction = true;
+    this.clearActionFeedback(); // Clear feedback before showing new one
+
+    try {
+      if (this.confirmActionType === 'unfollow-artist') {
+        await this.performUnfollowArtist(this.itemToConfirm as SpotifyArtist);
+      } else if (this.confirmActionType === 'unsave-album') {
+        await this.performUnsaveAlbum(this.itemToConfirm as SpotifySavedAlbumObject);
+      } else if (this.confirmActionType === 'unfollow-playlist') {
+        await this.performUnfollowPlaylist(this.itemToConfirm as SpotifyPlaylist);
+      }
+    } catch (err: any) {
+      // Error handled within the perform methods
+    } finally {
+      this.loadingConfirmationAction = false;
+      this.cancelConfirmation(); // Always close dialog after action attempt
+      this.cdRef.detectChanges();
+    }
+  }
+
+  /**
+   * Cancel the confirmation dialog
+   */
+  cancelConfirmation(): void {
+    this.showConfirmDialog = false;
+    this.itemToConfirm = null;
+    this.confirmActionType = null;
+    this.loadingConfirmationAction = false; // Ensure loading is off
+    this.cdRef.detectChanges();
+  }
+
+  // --- Actual Removal Logic (Called AFTER Confirmation) ---
+  /**
+   * Unfollow an artist (internal after confirmation)
+   */
+  private async performUnfollowArtist(artist: SpotifyArtist): Promise<void> {
+    this.logger.log(`Performing unfollow artist: ${artist.id} - ${artist.name}`);
+    try {
+      await this.spotifyService.unfollowArtist(artist.id);
+      
+      // Update local state
+      this.allFollowedArtists = this.allFollowedArtists.filter(a => a.id !== artist.id);
+      this.addedItemIds.delete(artist.id); // Update search button state
+      this.applyFilterAndSort();
+      
+      // Show success message
+      this.showFeedback('warning', `Unfollowed artist "${artist.name}".`);
+    } catch (err: any) {
+      this.handleError(err, `Failed to unfollow artist "${artist.name}".`);
+    }
+  }
+
+  /**
+   * Remove an album from library (internal after confirmation)
+   */
+  private async performUnsaveAlbum(item: SpotifySavedAlbumObject): Promise<void> {
+    const albumName = item.album.name;
+    const albumId = item.album.id;
+    
+    this.logger.log(`Performing unsave album: ${albumId} - ${albumName}`);
+    
+    try {
+      await this.spotifyService.unsaveAlbum(albumId);
+      
+      // Update local state
+      this.allSavedAlbums = this.allSavedAlbums.filter(i => i.album.id !== albumId);
+      this.addedItemIds.delete(albumId); // Update search button state
+      this.applyFilterAndSort();
+      
+      // Show success message
+      this.showFeedback('warning', `Unsaved album "${albumName}".`);
+    } catch (err: any) {
+      this.handleError(err, `Failed to unsave album "${albumName}".`);
+    }
+  }
+
+  /**
+   * Unfollow a playlist (internal after confirmation, assumes not owned)
+   */
+  private async performUnfollowPlaylist(playlist: SpotifyPlaylist): Promise<void> {
+     // This should only be called if the confirmActionType is 'unfollow-playlist',
+     // meaning the ownership check already passed in confirmRemoval.
+    
+    this.logger.log(`Performing unfollow playlist: ${playlist.id}`);
+    
+    try {
+      await this.spotifyService.unfollowPlaylist(playlist.id);
+      
+      // Update local state
+      this.allUserPlaylists = this.allUserPlaylists.filter(p => p.id !== playlist.id);
+      this.addedItemIds.delete(playlist.id);
+      this.applyFilterAndSort();
+      
+      this.showFeedback('warning', `Unfollowed playlist "${playlist.name}".`);
+    } catch (err: any) {
+      this.handleError(err, `Failed to unfollow playlist "${playlist.name}".`);
+    }
+  }
+  getItemName(item: any): string {
+    if (item && 'name' in item) {
+      return item.name;
+    }
+    return 'Unknown Item';
+  }
+
+  getAlbumName(item: any): string {
+    if (item && 'album' in item && item.album) {
+      return item.album.name;
+    }
+    return 'Unknown Album';
+  }
+  // --- End Confirmation Dialog Methods ---
 
   /**
    * Unfollow an artist
